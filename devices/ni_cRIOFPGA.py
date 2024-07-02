@@ -42,6 +42,8 @@
 # >>> import devices.fpga as FPGA
 # >>> FPGA._deviceInstance.advanceSLM(numSteps)
 # (where numSteps is an integer, the number of times to advance it).
+# 
+# 4) Added threading lock to runCommand()
 
 import json
 from time import sleep
