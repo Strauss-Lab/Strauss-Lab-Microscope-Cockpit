@@ -88,7 +88,7 @@ class NIcRIO(executorDevices.ExecutorDevice):
                            name,
                            ' '.join(missing)))
             raise e
-        self.tickrate = 100  # Number of ticks per ms. As of the resolution of the action table.
+        self.tickrate = 1000  # Number of ticks per ms. As of the resolution of the action table.
         self.sendPort = config.get('sendport')
         self.receivePort = config.get('receiveport')
         self.port = [self.sendPort, self.receivePort]
