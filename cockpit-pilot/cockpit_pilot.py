@@ -4,13 +4,28 @@ import queue
 import subprocess
 import psutil
 import time
+import os
+import importlib.util
 
 MAIN_SIZE = (600,250)
 DIALOG_SIZE = (700,120)
 COUNTDOWN = 3
-CONFIG_PATH = "C:/Users/admin/AppData/Local/Programs/Python/Python39/Lib/site-packages/cockpit/cockpit-pilot/device_config.py"
-DEPOT_PATH = "C:/Users/admin/AppData/Local/Programs/Python/Python39/Lib/site-packages/cockpit/cockpit-pilot/depot.conf"
-ICON_PATH = "C:/Users/admin/AppData/Local/Programs/Python/Python39/Lib/site-packages/cockpit/cockpit-pilot/strauss_lab_logo_inverted_wb.ico"
+
+# Fetch the root path dynamically
+package_name = 'cockpit'
+module_name = 'cockpit-pilot'
+
+# Find the package path
+spec = importlib.util.find_spec(package_name)
+if spec is None:
+    raise ImportError(f"Package '{package_name}' not found")
+
+package_path = os.path.dirname(spec.origin)
+pilot_path = os.path.join(package_path, module_name)
+
+CONFIG_PATH = os.path.join(pilot_path, 'device_config.py')
+DEPOT_PATH = os.path.join(pilot_path, 'depot.conf')
+ICON_PATH = os.path.join(pilot_path, 'strauss_lab_logo_inverted_wb.ico')
 
 # Apply the task bar icon fix
 import ctypes
