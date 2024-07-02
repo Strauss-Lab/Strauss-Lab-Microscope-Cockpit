@@ -32,7 +32,7 @@ class SISingleZ(experiment.Experiment):
     def __init__(self, collectionOrder="Z, Color, Angle, Phase",
                  numAngle=3, numPhase=5, numZ=3,
                  stageTime=100.0, attTime=100.0, angleTime=100.0, phaseTime=100.0, stepTime=100.0,
-                 lightTime=200.0, cameraTime=200.0,
+                 lightTime=200.0, cameraTime=200.0, onlyCentre=False,
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.lights = []
@@ -44,7 +44,7 @@ class SISingleZ(experiment.Experiment):
         self.phaseHandler = depot.getHandlerWithName('FPGA Phase')
         self.attHandler = depot.getHandlerWithName('FPGA Attenuator')
         self.collectionOrder = collectionOrder
-        self.numAngle = numAngle
+        self.numAngle = 1 if onlyCentre else numAngle
         self.numPhase = numPhase
         self.numZ = numZ
         self.stageTime = stageTime
@@ -54,6 +54,7 @@ class SISingleZ(experiment.Experiment):
         self.stepTime = stepTime
         self.lightTime = lightTime
         self.cameraTime = cameraTime
+        self.onlyCentre = onlyCentre
 
     def generateActions(self):
         table = actionTable.ActionTable()
@@ -247,8 +248,7 @@ class ExperimentUI(BaseTestExperimentUI):
 
     def augmentParams(self, params):
         params = super().augmentParams(params)
-        if self.onlyCentre.GetValue():
-            params['numAngles'] = 1
+        params['onlyCentre'] = self.onlyCentre.GetValue()
         return params
 
     def _getDefaultSettings(self):
