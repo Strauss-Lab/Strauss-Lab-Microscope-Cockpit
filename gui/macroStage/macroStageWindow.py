@@ -52,9 +52,7 @@
 ## POSSIBILITY OF SUCH DAMAGE.
 
 import typing
-
 import wx
-
 import cockpit.events
 import cockpit.gui
 import cockpit.gui.dialogs.safetyMinDialog
@@ -62,7 +60,6 @@ import cockpit.gui.keyboard
 from cockpit.gui.macroStage.macroStageXY import MacroStageXY
 from cockpit.gui.macroStage.macroStageZ import MacroStageZ
 from cockpit.interfaces import stageMover
-
 
 class HandlerPositionCtrl(wx.TextCtrl):
     def __init__(self, parent, axis: int, handler_index: int) -> None:
@@ -91,43 +88,22 @@ class HandlerPositionCtrl(wx.TextCtrl):
         else:
             self.Disable()
 
-
 class AxisStepCtrl(wx.TextCtrl):
-    """Text control to display step size for one axis.
-
-    Unlike the controls in :mod:`cockpit.gui.safeControls` this
-    control does not require affirmative action, i.e., the user is not
-    required to press enter to confirm the value.  Simply selecting
-    another control or window will attempt to set the new step size.
-    This is because the step size value is not critical in that
-    setting an incorrect value by accident does not have consequences.
-
-    However, like the safe controls, if the value is not valid, empty
-    or non-numeric for example, then it returns to the previous,
-    valid, value.
-
-    """
     def __init__(self, parent, axis: int) -> None:
         super().__init__(parent, style=wx.TE_RIGHT)
         self._axis = axis
 
         self._SetStepSizeValue(stageMover.getCurStepSizes()[self._axis])
 
-        # When we gain focus we will update the last value.  When we
-        # then lose focus we set the new step size.  If that fails,
-        # probably because it's invalid, we can revert back to the
-        # previous step size.
-        self._last_value = self.GetValue() # type: str
+        self._last_value = self.GetValue()  # type: str
         self.Bind(wx.EVT_KILL_FOCUS, self._OnKillFocus)
         self.Bind(wx.EVT_SET_FOCUS, self._OnSetFocus)
 
         step_size = cockpit.gui.EvtEmitter(self, 'stage step size')
         step_size.Bind(cockpit.gui.EVT_COCKPIT, self._OnStepSizeChange)
 
-
     def _SetStepSizeValue(self, step_size: float) -> None:
         self.SetValue('%4.2f' % step_size)
-
 
     def _OnStepSizeChange(self, event: cockpit.gui.CockpitEvent) -> None:
         axis, step_size = event.EventData
@@ -136,10 +112,7 @@ class AxisStepCtrl(wx.TextCtrl):
         else:
             self._SetStepSizeValue(step_size)
 
-
     def _OnSetFocus(self, event: wx.FocusEvent) -> None:
-        # Record value so that we can revert to it if we later fail to
-        # set the new value.
         self._last_value = self.GetValue()
         event.Skip()
 
@@ -153,26 +126,23 @@ class AxisStepCtrl(wx.TextCtrl):
             self._last_value = self.GetValue()
         event.Skip()
 
-
 class AxesPositionPanel(wx.Panel):
     """A panel showing the position and step size of some axis and stage."""
-    def __init__(self, parent, axes: typing.Sequence[str],
-                 *args, **kwargs) -> None:
+    def __init__(self, parent, axes: typing.Sequence[str], *args, **kwargs) -> None:
         super().__init__(parent, *args, **kwargs)
 
         for axis_name in axes:
             if axis_name not in stageMover.AXIS_MAP:
-                raise ValueError('unknown axis named\'%s\'' % axis_name)
+                raise ValueError(f"unknown axis named '{axis_name}'")
 
         n_stages = cockpit.interfaces.stageMover.mover.n_stages
-        positions = [] # type: typing.List[typing.List[AxisPositionCtrl]]
-        step_sizes = [] # type: typing.List[StageStepCtrl]
+        positions = []  # type: typing.List[typing.List[HandlerPositionCtrl]]
+        step_sizes = []  # type: typing.List[AxisStepCtrl]
         for axis_name in axes:
             axis_index = stageMover.AXIS_MAP[axis_name]
-            axis_positions = [] # type: typing.List[AxisPositionCtrl]
+            axis_positions = []  # type: typing.List[HandlerPositionCtrl]
             for handler_index in range(n_stages):
-                position = HandlerPositionCtrl(self, axis=axis_index,
-                                               handler_index=handler_index)
+                position = HandlerPositionCtrl(self, axis=axis_index, handler_index=handler_index)
                 axis_positions.append(position)
             positions.append(axis_positions)
             step_sizes.append(AxisStepCtrl(self, axis=axis_index))
@@ -180,15 +150,12 @@ class AxesPositionPanel(wx.Panel):
         sizer = wx.FlexGridSizer(3 + n_stages)
         sizer.SetFlexibleDirection(wx.HORIZONTAL)
         for i, axis_name in enumerate(axes):
-            sizer.Add(wx.StaticText(self, label=axis_name + ':'),
-                      flags=wx.SizerFlags().Centre())
+            sizer.Add(wx.StaticText(self, label=axis_name + ':'), wx.SizerFlags().Centre())
             for position in positions[i]:
-                sizer.Add(position)
-            sizer.Add(wx.StaticText(self, label='step (µm):'),
-                      flags=wx.SizerFlags().Centre().Border(wx.LEFT))
-            sizer.Add(step_sizes[i])
+                sizer.Add(position, wx.SizerFlags().Centre())
+            sizer.Add(wx.StaticText(self, label='step (µm):'), wx.SizerFlags().Centre().Border(wx.LEFT))
+            sizer.Add(step_sizes[i], wx.SizerFlags().Centre())
         self.SetSizer(sizer)
-
 
 class SaveTopBottomPanel(wx.Panel):
     def __init__(self, *args, **kwargs):
@@ -203,7 +170,6 @@ class SaveTopBottomPanel(wx.Panel):
         self._height_ctrl = wx.TextCtrl(self, style=wx.TE_RIGHT|wx.TE_READONLY)
         self._height_ctrl.Disable()
 
-        # Fill in the text controls with current values.
         self.UpdateSavedPositions(None)
 
         def make_button(label: str, handler: typing.Callable) -> wx.Button:
@@ -217,7 +183,7 @@ class SaveTopBottomPanel(wx.Panel):
         go_to_centre = make_button('Go to centre', self.OnGoToCentre)
         go_to_bottom = make_button('Go to bottom', self.OnGoToBottom)
 
-        listener = cockpit.gui.EvtEmitter(self,cockpit.events.STAGE_TOP_BOTTOM)
+        listener = cockpit.gui.EvtEmitter(self, cockpit.events.STAGE_TOP_BOTTOM)
         listener.Bind(cockpit.gui.EVT_COCKPIT, self.UpdateSavedPositions)
 
         sizer = wx.GridSizer(rows=3, cols=3, gap=(0, 0))
@@ -229,8 +195,7 @@ class SaveTopBottomPanel(wx.Panel):
         sizer.Add(self._top_ctrl, expand_sizer_flags)
         sizer.Add(go_to_top, expand_sizer_flags)
 
-        sizer.Add(wx.StaticText(self, label='z-height (µm):'),
-                  wx.SizerFlags(sizer_flags).Centre())
+        sizer.Add(wx.StaticText(self, label='z-height (µm):'), wx.SizerFlags(sizer_flags).Centre())
         sizer.Add(self._height_ctrl, expand_sizer_flags)
         sizer.Add(go_to_centre, expand_sizer_flags)
 
@@ -239,7 +204,6 @@ class SaveTopBottomPanel(wx.Panel):
         sizer.Add(go_to_bottom, expand_sizer_flags)
 
         self.SetSizer(sizer)
-
 
     def OnSaveTop(self, evt: wx.CommandEvent) -> None:
         stageMover.mover.SavedTop = stageMover.getPosition()[2]
@@ -250,8 +214,7 @@ class SaveTopBottomPanel(wx.Panel):
     def UpdateSavedPositions(self, evt: wx.CommandEvent) -> None:
         self._top_ctrl.ChangeValue('%.1f' % stageMover.mover.SavedTop)
         self._bottom_ctrl.ChangeValue('%.1f' % stageMover.mover.SavedBottom)
-        self._height_ctrl.ChangeValue('%.2f' % (stageMover.mover.SavedTop
-                                                - stageMover.mover.SavedBottom))
+        self._height_ctrl.ChangeValue('%.2f' % (stageMover.mover.SavedTop - stageMover.mover.SavedBottom))
 
     def OnEditTopPosition(self, evt: wx.CommandEvent) -> None:
         stageMover.mover.SavedTop = float(self._top_ctrl.GetValue())
@@ -266,59 +229,32 @@ class SaveTopBottomPanel(wx.Panel):
         stageMover.moveZCheckMoverLimits(stageMover.mover.SavedBottom)
 
     def OnGoToCentre(self, evt: wx.CommandEvent) -> None:
-        centre = (stageMover.mover.SavedBottom
-                  + ((stageMover.mover.SavedTop
-                      - stageMover.mover.SavedBottom) / 2.0))
+        centre = (stageMover.mover.SavedBottom + ((stageMover.mover.SavedTop - stageMover.mover.SavedBottom) / 2.0))
         stageMover.moveZCheckMoverLimits(centre)
 
-
-## This class simply contains instances of the various MacroStage
-# subclasses, side-by-side, along with the buttons associated
-# with each. It also allows for communication between
-# the different subclasses, and has some logic that is generally
-# related to the UIs the MacroStage instances provide but is not
-# tightly bound to any one of them.
 class MacroStagePanel(wx.Panel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # For relative sizing of items. The overall window is
-        # (width * 10) by (height * 8) pixels. The ratio of
-        # these two values is important for proper drawing.
-        # FIXME: this is not drawing properly (issue #585).  The fix
-        # should be on the MacroStage canvas themselves which should
-        # need a specific size and draw on whatever space is available
-        # to them.
         width = 84
-        height = width * 2 / 3.0
+        height = int(width * 2 / 3.0)
 
-        # Remember that, in classic "row means X, right?" fashion,
-        # WX has flipped its position and size tuples, so
-        # (7, 4) means an X position (or width) of 4, and a Y
-        # position/height of 7.
-
-        xy_stage = MacroStageXY(self, size=(width*4, height*6))
-        z_stage = MacroStageZ(self, size=(width*5, height*6))
+        xy_stage = MacroStageXY(self, size=(int(width * 4), int(height * 6)))
+        z_stage = MacroStageZ(self, size=(int(width * 5), int(height * 6)))
 
         xyz_coords = AxesPositionPanel(self, axes=['X', 'Y', 'Z'])
 
-        def make_button(label: str, handler: typing.Callable,
-                        tooltip: str = '') -> wx.Button:
+        def make_button(label: str, handler: typing.Callable, tooltip: str = '') -> wx.Button:
             btn = wx.Button(self, label=label)
             btn.SetToolTip(tooltip)
             btn.Bind(wx.EVT_BUTTON, handler)
             return btn
 
-        xy_safeties_btn = make_button('Set XY safeties', xy_stage.setSafeties,
-                                      'Click twice on the XY Macro Stage view'
-                                      ' to set the XY motion limits.')
+        xy_safeties_btn = make_button('Set XY safeties', xy_stage.setSafeties, 'Click twice on the XY Macro Stage view to set the XY motion limits.')
         z_safeties_btn = make_button('Set Z safeties', self.OnSetZSafeties)
-        switch_btn = make_button('Switch control', self.OnSwitchControl,
-                                 'Change which stage motion device the keypad'
-                                 ' controls.')
+        switch_btn = make_button('Switch control', self.OnSwitchControl, 'Change which stage motion device the keypad controls.')
         recenter_btn = make_button('Recenter', self.OnRecenter)
-        touch_down_btn = make_button('Touch down', self.OnTouchDown,
-                                     'Bring the stage down to touch slide')
+        touch_down_btn = make_button('Touch down', self.OnTouchDown, 'Bring the stage down to touch slide')
 
         top_bottom_panel = SaveTopBottomPanel(self)
 
@@ -330,11 +266,7 @@ class MacroStagePanel(wx.Panel):
         sizer.Add(stage_sizer)
 
         buttons_sizer = wx.GridSizer(cols=0, rows=1, gap=(0,0))
-        for btn in [xy_safeties_btn,
-                    switch_btn,
-                    recenter_btn,
-                    z_safeties_btn,
-                    touch_down_btn]:
+        for btn in [xy_safeties_btn, switch_btn, recenter_btn, z_safeties_btn, touch_down_btn]:
             buttons_sizer.Add(btn, wx.SizerFlags().Expand().Border())
         sizer.Add(buttons_sizer, wx.SizerFlags().Centre())
 
@@ -347,7 +279,6 @@ class MacroStagePanel(wx.Panel):
 
         cockpit.gui.keyboard.setKeyboardHandlers(self)
 
-
     def OnSwitchControl(self, evt: wx.CommandEvent) -> None:
         stageMover.changeMover()
 
@@ -357,10 +288,9 @@ class MacroStagePanel(wx.Panel):
     def OnSetZSafeties(self, evt: wx.CommandEvent) -> None:
         cockpit.gui.dialogs.safetyMinDialog.showDialog(self)
 
-    def OnTouchDown(self, ect: wx.CommandEvent) -> None:
+    def OnTouchDown(self, evt: wx.CommandEvent) -> None:
         zpos = wx.GetApp().Config['stage'].getfloat('slideTouchdownAltitude')
         stageMover.goToZ(zpos)
-
 
 class MacroStageWindow(wx.Frame):
     SHOW_DEFAULT = True
@@ -371,6 +301,6 @@ class MacroStageWindow(wx.Frame):
         sizer.Add(panel)
         self.SetSizerAndFit(sizer)
 
-
 def makeWindow(parent):
     window = MacroStageWindow(parent)
+    return window

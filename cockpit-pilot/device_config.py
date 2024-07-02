@@ -1,11 +1,11 @@
 from microscope.device_server import device
-from microscope.cameras.pco import pcoPandaCamera
-from microscope.lights.coboltskyra import CoboltSkyra
-from microscope.stages.asi import ASIStage
+# from microscope.cameras.pco import pcoPandaCamera
+# from microscope.lights.coboltskyra import CoboltSkyra
+# from microscope.stages.asi import ASIStage
 from microscope.simulators import SimulatedCamera
 from microscope.simulators import SimulatedLightSource
 
-HOST = "172.22.11.1"
+HOST = "10.122.37.122"
 
 DEVICES = [
     # device(pcoPandaCamera, host=host, port=7701),

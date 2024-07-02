@@ -66,7 +66,7 @@ COCKPIT_AXES = {'x': 0, 'y': 1, 'z': 2, 'SI angle': -1}
 FPGA_IDLE_STATE = 3
 FPGA_ABORTED_STATE = 4
 FPGA_HEARTBEAT_RATE = .1  # At which rate is the FPGA sending update status signals
-MASTER_IP = '172.22.11.1'
+MASTER_IP = '10.122.37.122'
 UPDATE_RATE = 0.001
 
 class NIcRIO(executorDevices.ExecutorDevice):
@@ -92,9 +92,9 @@ class NIcRIO(executorDevices.ExecutorDevice):
         self.sendPort = config.get('sendport')
         self.receivePort = config.get('receiveport')
         self.port = [self.sendPort, self.receivePort]
-        self._currentAnalogs = 4*[0]
+        self._currentAnalogs = 6*[0]
         # Absolute positions prior to the start of the experiment.
-        self._lastAnalogs = 4*[0]
+        self._lastAnalogs = 6*[0]
         # Store last movement profile for debugging
         self._lastProfile = None
         self.connection = None
@@ -107,7 +107,7 @@ class NIcRIO(executorDevices.ExecutorDevice):
     def initialize(self):
         """Connect to ni's RT-ipAddress computer. Overrides ExecutorDevice's initialize.
         """
-        self.connection = Connection(parent=self, ipAddress=self.ipAddress, port=self.port, localIp=MASTER_IP)
+        self.connection = Connection(parent=self, ipAddress=self.ipAddress, port=self.port, localIp=self.ipAddress)
         self.connection.connect()
         self.connection.Abort()
 

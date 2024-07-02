@@ -254,8 +254,9 @@ class CountdownFrame(wx.Frame):
     def LaunchCockpitMain(self):
         threading.Thread(target=self.cockpit_main, daemon=True).start()
         
+    
     def cockpit_main(self):
-        command = f"cockpit --depot-file {self.depot_path}"
+        command = f"python -m cockpit --depot-file {self.depot_path}"
         proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
         
         for line in iter(proc.stdout.readline, ''):
