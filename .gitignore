@@ -2,4 +2,5 @@
 *.log
 
 # Ignore depot file
-depot.conf
+cockpit-pilot/depot.conf
+cockpit-pilot/device_config.py
