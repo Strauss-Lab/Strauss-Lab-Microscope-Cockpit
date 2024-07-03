@@ -7,8 +7,8 @@ import time
 import os
 import importlib.util
 
-MAIN_SIZE = (600,250)
-DIALOG_SIZE = (700,120)
+MAIN_SIZE = (600, 250)
+DIALOG_SIZE = (700, 120)
 COUNTDOWN = 3
 
 # Fetch the root path dynamically
@@ -25,16 +25,16 @@ pilot_path = os.path.join(package_path, module_name)
 
 CONFIG_PATH = os.path.join(pilot_path, 'device_config.py')
 DEPOT_PATH = os.path.join(pilot_path, 'depot.conf')
-ICON_PATH = os.path.join(pilot_path, 'strauss_lab_logo_inverted_wb.ico')
+ICON_PATH = os.path.join(pilot_path, 'strauss_lab_logo_red.ico')
 
 # Apply the task bar icon fix
 import ctypes
-myappid = 'mycompany.myproduct.subproduct.version' # arbitrary string
+myappid = 'Strauss Lab Cockpit v1.0'  # arbitrary string
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 class CockpitPilotApp(wx.App):
     def OnInit(self):
-        self.frame = MainFrame(None, title="Cockpit Pilot", size=(400, 180))
+        self.frame = MainFrame(None, title="Strauss Lab", size=(400, 180))
         self.frame.Show()
         return True
 
@@ -85,7 +85,7 @@ class MainFrame(wx.Frame):
         panel.SetSizer(vbox)
 
     def OnChangeConfigPath(self, event):
-        dialog = DialogFrame(self, "Config Path Dialog", size=DIALOG_SIZE)
+        dialog = DialogFrame(self, "Configuration Paths", size=DIALOG_SIZE)
         dialog.Show()
 
     def OnOpenDepotFile(self, event):
@@ -93,7 +93,7 @@ class MainFrame(wx.Frame):
         # Monitor the Notepad process
         notepad_process = psutil.Process(process.pid)
         try:
-            while notepad_process.is_running() and not notepad_process.status() == psutil.STATUS_ZOMBIE:
+            while not notepad_process.is_running() and not notepad_process.status() == psutil.STATUS_ZOMBIE:
                 time.sleep(0.5)
         except psutil.NoSuchProcess:
             pass
@@ -106,7 +106,7 @@ class MainFrame(wx.Frame):
         countdown_frame.Show(True)
 
     def OpenOutputWindow(self):
-        self.output_window = OutputWindow(self, "Device Server Output")
+        self.output_window = OutputWindow(self, "Device Server Logging")
         self.PollOutputQueue()
 
     def PollOutputQueue(self):
@@ -137,6 +137,11 @@ class DialogFrame(wx.Frame):
         super(DialogFrame, self).__init__(parent, title=title, size=size)
         
         self.parent = parent
+
+        # Set the application icon
+        icon = wx.Icon(ICON_PATH, wx.BITMAP_TYPE_ICO)
+        self.SetIcon(icon)
+
         self.InitUI()
         self.Centre()
         
@@ -196,6 +201,11 @@ class DialogFrame(wx.Frame):
 class OutputWindow(wx.Frame):
     def __init__(self, parent, title):
         super(OutputWindow, self).__init__(parent, title=title, size=(500, 300))
+
+        # Set the application icon
+        icon = wx.Icon(ICON_PATH, wx.BITMAP_TYPE_ICO)
+        self.SetIcon(icon)
+
         self.InitUI()
         self.Centre()
         self.Show()
@@ -260,11 +270,12 @@ class CountdownFrame(wx.Frame):
         proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
         
         for line in iter(proc.stdout.readline, ''):
-            wx.CallAfter(self.main_frame_ref.output_window.AppendText, line)
+            if self.main_frame_ref.is_window_open:  # Check if the window is still open
+                wx.CallAfter(self.main_frame_ref.output_window.AppendText, line)
         
         proc.stdout.close()
         proc.wait()
-        if proc.returncode != 0:
+        if proc.returncode != 0 and self.main_frame_ref.is_window_open:  # Check if the window is still open
             wx.CallAfter(wx.MessageBox, "Cockpit exited with an error.", "Error", wx.OK | wx.ICON_ERROR)
 
 def my_font(size=10):
