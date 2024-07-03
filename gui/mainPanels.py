@@ -157,7 +157,6 @@ class fpgaAnalogueControlsPanel(wx.Panel):
         analogueLines = sorted(depot.getHandlersOfType(depot.FPGA_ANALOG),
                                key=lambda l: l.trigLine)
         self.panels = {}
-        print(f'printing from fpgaAnalogueControlsPanel {len(analogueLines)}')
         for line in analogueLines:
             panel = fpgaAnaloguePanel(self, line)
             sz.Add(panel, flag=wx.EXPAND)
