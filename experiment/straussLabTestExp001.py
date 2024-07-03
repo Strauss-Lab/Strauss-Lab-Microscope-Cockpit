@@ -106,7 +106,6 @@ class SISingleZ(experiment.Experiment):
     def genSIPositions(self):
         ordering = COLLECTION_ORDERS[self.collectionOrder]
         maxVals = (self.numAngle, self.numPhase, len(self.lights), self.numZ)  # angle, phase, color, z
-        print(f'Priting in genSIPositions:\nmaxVals: {maxVals}\nordering:{ordering}')
         z = self.zStart
         for i in range(maxVals[ordering[0]]):
             for j in range(maxVals[ordering[1]]):

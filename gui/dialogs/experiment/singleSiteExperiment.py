@@ -143,13 +143,9 @@ class SingleSiteExperimentDialog(wx.Dialog):
         self.Refresh()
         self.SetSizerAndFit(self.sizer)
         return self.panel
-        
-        
-
 
 ## Global singleton
 dialog = None
-
 
 def showDialog(parent):
     global dialog

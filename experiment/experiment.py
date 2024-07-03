@@ -283,8 +283,6 @@ class Experiment:
         self.examineActions()
         self.table.sort()
         self.table.enforcePositiveTimepoints()
-        # DEBUG
-        print(f'Printing Sorted Action Table:\n{self.table}\n')
 
     ## Perform any necessary sanity checks to ensure that the environment is
     # set up properly. Raise an exception if anything is wrong.

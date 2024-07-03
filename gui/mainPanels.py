@@ -151,7 +151,7 @@ class fpgaAnalogueControlsPanel(wx.Panel):
         super().__init__(parent)
         self.Sizer = wx.BoxSizer(wx.VERTICAL)
         self.Sizer.Add(PanelLabel(self, label="FPGA Analogue Lines"))
-        sz = wx.BoxSizer(wx.HORIZONTAL)
+        sz = wx.BoxSizer(wx.VERTICAL)
         self.Sizer.Add(sz)
         # NOTE: fpgaAnalogueControlsPanel parse the handlers list and creates a fpgaAnaloguePanel class for each Analogue Line
         analogueLines = sorted(depot.getHandlersOfType(depot.FPGA_ANALOG),

@@ -89,7 +89,6 @@ from cockpit.gui import mainPanels
 ROW_SPACER = 12
 COL_SPACER = 8
 
-
 class MainWindowPanel(wx.Panel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -121,26 +120,31 @@ class MainWindowPanel(wx.Panel):
         buttonSizer.Add(videoButton, 1, wx.EXPAND)
 
         # Experiment & review buttons
-        for lbl, fn in ( ("Single-site\nexperiment", lambda evt: singleSiteExperiment.showDialog(self) ),
-                         ("Multi-site\nexperiment", lambda evt: multiSiteExperiment.showDialog(self) ),
-                         ("View last\nfile", self.onViewLastFile) ):
+        for lbl, fn in (("Single-site\nexperiment", lambda evt: singleSiteExperiment.showDialog(self)),
+                        ("Multi-site\nexperiment", lambda evt: multiSiteExperiment.showDialog(self)),
+                        ("View last\nfile", self.onViewLastFile)):
             btn = wx.Button(self, wx.ID_ANY, lbl)
             btn.Bind(wx.EVT_BUTTON, fn)
             buttonSizer.Add(btn, 1, wx.EXPAND)
 
-
+        # Add objective control to the first row of buttons
+        buttonSizer.Add(
+            mainPanels.ObjectiveControls(self, wx.GetApp().Objectives),
+            flag=wx.LEFT,
+            border=2,
+        )
 
         # Increase font size in top row buttons.
         for w in [child.GetWindow() for child in buttonSizer.Children]:
             w.SetFont(w.GetFont().Larger())
-        root_sizer.Add(buttonSizer)
+        root_sizer.Add(buttonSizer, 0, wx.ALL | wx.EXPAND, 5)
         root_sizer.AddSpacer(ROW_SPACER)
 
         # Make UIs for any other handlers / devices and insert them into
         # our window, if possible.
         # Light power things will be handled later.
         lightPowerThings = depot.getHandlersOfType(depot.LIGHT_POWER)
-        lightPowerThings.sort(key = lambda l: l.wavelength)
+        lightPowerThings.sort(key=lambda l: l.wavelength)
         # Camera UIs are drawn separately. Currently, they are drawn first,
         # but this separation may make it easier to implement cameras in
         # ordered slots, giving the user control over exposure order.
@@ -150,17 +154,9 @@ class MainWindowPanel(wx.Panel):
         ignoreThings += cameraThings
         # Remove ignoreThings from the full list of devices.
         otherThings = list(depot.getAllDevices())
-        otherThings.sort(key = lambda d: d.__class__.__name__)
+        otherThings.sort(key=lambda d: d.__class__.__name__)
         otherThings.extend(depot.getAllHandlers())
         rowSizer = wx.WrapSizer(wx.HORIZONTAL)
-
-        # Add objective control
-        buttonSizer.Add(
-            mainPanels.ObjectiveControls(self, wx.GetApp().Objectives),
-            flag=wx.LEFT,
-            border=2,
-        )
-        ignoreThings.extend(wx.GetApp().Objectives.GetHandlers())
 
         # Make the UI elements for the cameras.
         rowSizer.Add(mainPanels.CameraControlsPanel(self))
@@ -173,7 +169,7 @@ class MainWindowPanel(wx.Panel):
         # Add filterwheel controls.
         rowSizer.Add(mainPanels.FilterControls(self))
 
-        # Make the UI elements for eveything else.
+        # Make the UI elements for everything else.
         for thing in ignoreThings:
             if thing in otherThings:
                 otherThings.remove(thing)
@@ -192,7 +188,7 @@ class MainWindowPanel(wx.Panel):
                 rowSizer.Add(itemsizer)
 
         root_sizer.Add(rowSizer, wx.SizerFlags().Expand())
-        root_sizer.AddSpacer(ROW_SPACER+5)
+        root_sizer.AddSpacer(ROW_SPACER + 5)
 
         lights_sizer = wx.BoxSizer(wx.HORIZONTAL)
         lights_sizer.Add(mainPanels.LightControlsPanel(self), flag=wx.EXPAND)
@@ -203,11 +199,10 @@ class MainWindowPanel(wx.Panel):
         aLine_sizer = wx.BoxSizer(wx.HORIZONTAL)
         aLine_sizer.Add(mainPanels.fpgaAnalogueControlsPanel(self), flag=wx.EXPAND)
         root_sizer.Add(aLine_sizer, flag=wx.EXPAND)
-        root_sizer.Add(rowSizer, wx.SizerFlags().Expand())
-        root_sizer.AddSpacer(ROW_SPACER-2)
+        root_sizer.AddSpacer(ROW_SPACER - 2)
         # End customization
 
-        self.SetSizer(root_sizer)
+        self.SetSizerAndFit(root_sizer)
         self.Layout()
 
         keyboard.setKeyboardHandlers(self)
@@ -220,12 +215,12 @@ class MainWindowPanel(wx.Panel):
     # file in an image viewer. A bit tricky when there's multiple files
     # generated due to the splitting logic. We just view the first one in
     # that case.
-    def onViewLastFile(self, event = None):
+    def onViewLastFile(self, event=None):
         filenames = cockpit.experiment.experiment.getLastFilenames()
         if filenames:
             window = fileViewerWindow.FileViewer(filenames[0], self)
             if len(filenames) > 1:
-                print ("Opening first of %d files. Others can be viewed by dragging them from the filesystem onto the main window of the Cockpit." % len(filenames))
+                print("Opening first of %d files. Others can be viewed by dragging them from the filesystem onto the main window of the Cockpit." % len(filenames))
 
 
 class ChannelsMenu(wx.Menu):
@@ -466,10 +461,10 @@ class WindowsMenu(wx.Menu):
         if wx.Display.GetFromWindow(window) == wx.NOT_FOUND:
             window.SetPosition(wx.GetMousePosition())
 
-
 class MainWindow(wx.Frame):
     def __init__(self):
         super().__init__(parent=None, title="Cockpit")
+        self.is_window_open = True  # Add this flag
         panel = MainWindowPanel(self)
 
         menu_bar = wx.MenuBar()
@@ -511,7 +506,6 @@ class MainWindow(wx.Frame):
         if 'gtk3' in wx.PlatformInfo:
             self.Bind(wx.EVT_SHOW, self.OnShow)
 
-
     def OnShow(self, event: wx.ShowEvent) -> None:
         self.Fit()
         event.Skip()
@@ -536,6 +530,7 @@ class MainWindow(wx.Frame):
         CockpitApp.OnExit, since in that function all of the wx
         objects have been destroyed already.
         """
+        self.is_window_open = False  # Update the flag
         if not event.CanVeto():
             event.Destroy()
         else:
@@ -546,7 +541,6 @@ class MainWindow(wx.Frame):
 
     def _OnAbout(self, event):
         wx.adv.AboutBox(CockpitAboutInfo(), parent=self)
-
 
 class StatusLights(wx.StatusBar):
     """A window status bar with the Cockpit status lights.
