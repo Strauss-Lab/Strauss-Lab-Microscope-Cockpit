@@ -238,6 +238,10 @@ class CountdownFrame(wx.Frame):
         self.InitUI()
         self.Centre()
         self.StartCountdown()
+        
+        # Set the application icon
+        icon = wx.Icon(ICON_PATH, wx.BITMAP_TYPE_ICO)
+        self.SetIcon(icon)
 
     def InitUI(self):
         self.panel = wx.Panel(self)
