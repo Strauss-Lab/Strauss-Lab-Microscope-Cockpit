@@ -69,16 +69,16 @@ from cockpit.experiment import straussLabTestExp002
 
 ## List of registered modules.
 registeredModules = [
-    zStack,
-    sweptShutter,
-    offsetGainCorrection,
-    responseMap,
-    stutteredZStack,
-    optoScriptExample,
-    structuredIllumination,
-    SIMFlux,
-    si2d,
-    rotatorSweep,
+    # zStack,
+    # sweptShutter,
+    # offsetGainCorrection,
+    # responseMap,
+    # stutteredZStack,
+    # optoScriptExample,
+    # structuredIllumination,
+    # SIMFlux,
+    # si2d,
+    # rotatorSweep,
     straussLabTestExp001,
     straussLabTestExp002,
 ]

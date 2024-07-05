@@ -436,82 +436,106 @@ class ExperimentConfigPanel(wx.Panel):
     
 
     ## Run the experiment per the user's settings.
-    def runExperiment(self):
-        # Returns True to close dialog box, None or False otherwise.
-        self.saveSettings()
-        # Find the Z mover with the smallest range of motion, assumed
-        # to be our experiment mover.
-        mover = depot.getSortedStageMovers()[2][-1]
-        # Only use active cameras and enabled lights.
-        # Must do list(filter) because we will iterate over the list
-        # many times.
-        cameras = list(filter(lambda c: c.getIsEnabled(),
-                depot.getHandlersOfType(depot.CAMERA)))
-        if not cameras:
-            wx.MessageDialog(self,
-                    message = "No cameras are enabled, so the experiment cannot be run.",
-                    style = wx.ICON_EXCLAMATION | wx.STAY_ON_TOP | wx.OK).ShowModal()
-            return True
+    def runExperiment(self, generate_only=False):
+        try:
+            # Returns True to close dialog box, None or False otherwise.
+            self.saveSettings()
 
-        exposureSettings = []
-        if self.shouldExposeSimultaneously.GetValue():
-            # A single exposure event with all cameras and lights.
-            lightTimePairs = []
-            for i, light in enumerate(self.allLights):
-                if (self.allLights[i].getIsEnabled() and
-                        self.lightExposureTimes[i].GetValue()):
-                    lightTimePairs.append(
-                        (light, guiUtils.tryParseNum(self.lightExposureTimes[i], decimal.Decimal)))
-            exposureSettings = [(cameras, lightTimePairs)]
-        else:
-            # A separate exposure for each camera.
-            for camera in cameras:
-                cameraSettings = self.cameraToExposureTimes[camera]
-                settings = []
+            # Find the Z mover with the smallest range of motion, assumed to be our experiment mover.
+            movers = depot.getSortedStageMovers()
+            if len(movers) < 3:
+                wx.MessageDialog(self,
+                        message="Not enough stage movers found, so the experiment cannot be run.",
+                        style=wx.ICON_EXCLAMATION | wx.STAY_ON_TOP | wx.OK).ShowModal()
+                return True
+            mover = movers[2][-1]
+
+            # Only use active cameras and enabled lights.
+            cameras = list(filter(lambda c: c.getIsEnabled(), depot.getHandlersOfType(depot.CAMERA)))
+            if not cameras:
+                wx.MessageDialog(self,
+                        message="No cameras are enabled, so the experiment cannot be run.",
+                        style=wx.ICON_EXCLAMATION | wx.STAY_ON_TOP | wx.OK).ShowModal()
+                return True
+
+            exposureSettings = []
+            if self.shouldExposeSimultaneously.GetValue():
+                # A single exposure event with all cameras and lights.
+                lightTimePairs = []
                 for i, light in enumerate(self.allLights):
-                    if not light.getIsEnabled():
-                        continue
-                    timeControl = cameraSettings[i]
-                    if timeControl.GetValue():
-                        settings.append((light, guiUtils.tryParseNum(timeControl, decimal.Decimal)))
-                exposureSettings.append(([camera], settings))
-                
-        altitude = cockpit.interfaces.stageMover.getPositionForAxis(2)
-        # Default to "current is bottom"
-        altBottom = altitude
-        zHeight = guiUtils.tryParseNum(self.stackHeight, float)
-        if self.zPositionMode.GetStringSelection() == 'Current is center':
-            altBottom = altitude - zHeight / 2
-        elif self.zPositionMode.GetStringSelection() == 'Use saved top/bottom':
-            zHeight = (cockpit.interfaces.stageMover.mover.SavedTop
-                       - cockpit.interfaces.stageMover.mover.SavedBottom)
+                    if self.allLights[i].getIsEnabled() and self.lightExposureTimes[i].GetValue():
+                        lightTimePairs.append((light, guiUtils.tryParseNum(self.lightExposureTimes[i], decimal.Decimal)))
+                exposureSettings = [(cameras, lightTimePairs)]
+            else:
+                # A separate exposure for each camera.
+                for camera in cameras:
+                    cameraSettings = self.cameraToExposureTimes[camera]
+                    settings = []
+                    for i, light in enumerate(self.allLights):
+                        if not light.getIsEnabled():
+                            continue
+                        timeControl = cameraSettings[i]
+                        if timeControl.GetValue():
+                            settings.append((light, guiUtils.tryParseNum(timeControl, decimal.Decimal)))
+                    exposureSettings.append(([camera], settings))
 
-        sliceHeight = guiUtils.tryParseNum(self.sliceHeight, float)
-        if zHeight == 0:
-            # 2D mode.
-            zHeight = 1e-6
-            sliceHeight = 1e-6
+            altitude = cockpit.interfaces.stageMover.getPositionForAxis(2)
+            # Default to "current is bottom"
+            altBottom = altitude
+            zHeight = guiUtils.tryParseNum(self.stackHeight, float)
+            if self.zPositionMode.GetStringSelection() == 'Current is center':
+                altBottom = altitude - zHeight / 2
+            elif self.zPositionMode.GetStringSelection() == 'Use saved top/bottom':
+                zHeight = (cockpit.interfaces.stageMover.mover.SavedTop
+                        - cockpit.interfaces.stageMover.mover.SavedBottom)
 
-        savePath = os.path.join(cockpit.util.files.getUserSaveDir(),
-                self.filename.GetValue())
-        params = {
-                'numReps': guiUtils.tryParseNum(self.numReps),
-                'repDuration': guiUtils.tryParseNum(self.repDuration, float),
-                'zPositioner': mover,
-                'altBottom': altBottom,
-                'zHeight': zHeight,
-                'sliceHeight': sliceHeight,
-                'exposureSettings': exposureSettings,
-                'savePath': savePath
-        }
-        experimentType = self.experimentType.GetStringSelection()
-        module = self.experimentStringToModule[experimentType]
-        if module in self.experimentModuleToPanel:
-            # Add on the special parameters needed by this experiment type.
-            params = self.experimentModuleToPanel[module].augmentParams(params)
+            sliceHeight = guiUtils.tryParseNum(self.sliceHeight, float)
+            if zHeight == 0:
+                # 2D mode.
+                zHeight = 1e-6
+                sliceHeight = 1e-6
 
-        self.runner = module.EXPERIMENT_CLASS(**params)
-        return self.runner.run()
+            savePath = os.path.join(cockpit.util.files.getUserSaveDir(), self.filename.GetValue())
+            params = {
+                    'numReps': guiUtils.tryParseNum(self.numReps),
+                    'repDuration': guiUtils.tryParseNum(self.repDuration, float),
+                    'zPositioner': mover,
+                    'altBottom': altBottom,
+                    'zHeight': zHeight,
+                    'sliceHeight': sliceHeight,
+                    'exposureSettings': exposureSettings,
+                    'savePath': savePath
+            }
+
+            experimentType = self.experimentType.GetStringSelection()
+            module = self.experimentStringToModule[experimentType]
+            if module in self.experimentModuleToPanel:
+                # Add on the special parameters needed by this experiment type.
+                params = self.experimentModuleToPanel[module].augmentParams(params)
+
+            self.runner = module.EXPERIMENT_CLASS(**params)
+
+            if generate_only:
+                self.runner.sanityCheckEnvironment()
+                self.runner.prepareHandlers()
+                self.runner.cameraToReadoutTime = {c: c.getTimeBetweenExposures(isExact = True) for c in self.runner.cameras}
+                for camera, readTime in self.runner.cameraToReadoutTime.items():
+                    if type(readTime) is not decimal.Decimal:
+                        raise RuntimeError("Camera %s did not provide an exact (decimal.Decimal) readout time"
+                                        % camera.name)
+
+                # Indicate any frame transfer cameras for reset at start of table.
+                for camera in self.runner.cameras:
+                    if camera.getExposureMode() == cockpit.handlers.camera.TRIGGER_AFTER:
+                        self.runner.cameraToIsReady[camera] = False
+                return self.runner.generateActions()
+            return self.runner.run()
+
+        except Exception as e:
+            wx.MessageDialog(self,
+                            message=f"An error occurred while running the experiment: {e}",
+                            style=wx.ICON_ERROR | wx.STAY_ON_TOP | wx.OK).ShowModal()
+            return False
 
 
     ## Generate a dict of our current settings.

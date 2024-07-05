@@ -659,7 +659,6 @@ class Experiment:
             # No actions yet; assume camera is ready at the start of the
             # experiment.
             return 0
-
         nextUseTime = lastUseTime
         if camera.getExposureMode() == cockpit.handlers.camera.TRIGGER_BEFORE:
             # The camera actually finished exposing (and started reading

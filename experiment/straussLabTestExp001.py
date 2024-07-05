@@ -21,7 +21,7 @@ from cockpit.gui.guiUtils import IntValidator
 from cockpit.gui.guiUtils import FloatValidator
 
 ## Provided so the UI knows what to call this experiment.
-EXPERIMENT_NAME = 'Strauss Lab Test 001'
+EXPERIMENT_NAME = 'Strauss Lab Experiment 001'
 
 COLLECTION_ORDERS = {
     "Z, Color, Angle, Phase": (3, 2, 0, 1),
@@ -39,7 +39,6 @@ class SISingleZ(experiment.Experiment):
         for light in depot.getHandlersOfType(depot.LIGHT_TOGGLE):
             if light.getIsEnabled():
                 self.lights.append(light)
-        print(f'Upon Initialization:\nself.lights:{self.lights}')
         self.angleHandler = depot.getHandlerWithName('FPGA Angle')
         self.phaseHandler = depot.getHandlerWithName('FPGA Phase')
         self.attHandler = depot.getHandlerWithName('FPGA Attenuator')
@@ -59,16 +58,15 @@ class SISingleZ(experiment.Experiment):
     def generateActions(self):
         table = actionTable.ActionTable()
         curTime = 0
-
         # Turn off all the lights.
         for light in self.lights:
             table.addAction(curTime, light, False)
             curTime += decimal.Decimal(self.stepTime)
-        
         prev_z = -1
         prev_angle = -1
         prev_color = -1
-
+        prev_phase = -1
+        
         for angle, phase, color, z in self.genSIPositions():
             if z != prev_z:
                 prev_z = z
@@ -82,18 +80,18 @@ class SISingleZ(experiment.Experiment):
                 prev_angle = angle
                 table.addAction(curTime, self.angleHandler, angle)  # Change angle
                 curTime += decimal.Decimal(self.angleTime)
-
-            table.addAction(curTime, self.phaseHandler, phase)
-            curTime += decimal.Decimal(self.phaseTime)
+            if phase != prev_phase:
+                prev_phase = phase
+                table.addAction(curTime, self.phaseHandler, phase)
+                curTime += decimal.Decimal(self.phaseTime)
             curTime = self.exposeSingle(curTime, self.cameras, self.lights[color], table)
             curTime += decimal.Decimal(self.stepTime)
-        print(f'Printing Generated Action Table:\n{table}')
+        # print(f'Printing Generated Action Table:\n{table}')
         return table
 
     def exposeSingle(self, curTime, cameras, light, table):
         table.addAction(curTime, light, True)   # Turn on light
         table.addAction(curTime + decimal.Decimal(self.lightTime), light, False)
-
         for camera in cameras:
             cameraReadyTime = self.getTimeWhenCameraCanExpose(table, camera)
             exposureStartTime = max(curTime, cameraReadyTime)

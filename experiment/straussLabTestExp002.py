@@ -18,7 +18,7 @@ import wx
 import time
 
 ## Provided so the UI knows what to call this experiment.
-EXPERIMENT_NAME = 'Strauss Lab Test 002'
+EXPERIMENT_NAME = 'Strauss Lab Experiment 002'
 REPETITION = 5
 
 class LaserColorRotation(experiment.Experiment):
