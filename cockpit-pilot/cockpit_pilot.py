@@ -31,7 +31,7 @@ ICON_PATH = os.path.join(pilot_path, 'strauss_lab_logo_red.ico')
 
 # Apply the task bar icon fix
 import ctypes
-myappid = 'Strauss Lab Cockpit v1.0'  # arbitrary string
+myappid = 'Strauss Lab Cockpit v1.0'
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 class CockpitPilotApp(wx.App):
