@@ -1,3 +1,28 @@
+"""
+    Strauss Lab Cockpit Pilot Application v1.0
+
+    This module defines the GUI application for the Cockpit Pilot, which is used to
+    configure and launch the Cockpit microscopy software. The application includes
+    features for setting configuration paths, verifying dependencies, and launching
+    the Cockpit software.
+
+    Classes:
+        - CockpitPilotApp: The main application class for initializing the GUI.
+        - MainFrame: The main window of the application, containing various controls
+        and options for configuration and launching Cockpit.
+        - DialogFrame: A dialog window for changing configuration file paths.
+        - OutputWindow: A window for displaying logging output from the device server.
+        - CountdownFrame: A window showing a countdown before launching the Cockpit main application.
+
+    Functions:
+        - my_font(size): Utility function for creating wx.Font objects with specified size and style.
+
+    Usage:
+        Run this module as the main entry point to start the Cockpit Pilot application.
+        The application provides a graphical interface to configure settings, check
+        dependencies, and launch the Cockpit software with logging capabilities.
+"""
+
 import wx
 import threading
 import socket
