@@ -1,5 +1,7 @@
 import wx
 import threading
+import socket
+import configparser
 import queue
 import subprocess
 import psutil
@@ -45,6 +47,7 @@ class MainFrame(wx.Frame):
         self.config_path = CONFIG_PATH
         self.depot_path = DEPOT_PATH
         self.output_queue = queue.Queue()
+        self.is_window_open = True  # Track if the window is still open
 
         # Set the application icon
         icon = wx.Icon(ICON_PATH, wx.BITMAP_TYPE_ICO)
@@ -71,7 +74,6 @@ class MainFrame(wx.Frame):
         config_button.Bind(wx.EVT_BUTTON, self.OnChangeConfigPath)
         button_sizer.Add(config_button, flag=wx.RIGHT, border=10)
 
-        # TODO: bind event with the button
         depot_button = wx.Button(panel, label=" Open Depot Configuration ")
         depot_button.Bind(wx.EVT_BUTTON, self.OnOpenDepotFile)
         button_sizer.Add(depot_button, flag=wx.RIGHT, border=10)
@@ -98,12 +100,62 @@ class MainFrame(wx.Frame):
         except psutil.NoSuchProcess:
             pass
 
+    def CheckDependency(self, callback) -> None:
+        def worker():
+            result = self._check_dependency()
+            wx.CallAfter(callback, result)
+        
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _check_dependency(self) -> bool:
+        def show_warning(message):
+            dialog = wx.MessageDialog(None, message, "Warning", wx.OK | wx.CANCEL | wx.ICON_WARNING)
+            dialog.Centre()
+            response = dialog.ShowModal()
+            dialog.Destroy()
+            return response == wx.ID_OK
+
+        # Verify the presence of NI FPGA Host
+        conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        config = configparser.ConfigParser()
+        config.read(self.depot_path)
+        ni_fpga_section = None
+        for section in config.sections():
+            if section.startswith('NI FPGA'):
+                ni_fpga_section = section
+                break
+
+        if not ni_fpga_section:
+            if not show_warning(f"The configuration file does not contain a section for 'NI FPGA'. Continuing without this may lead to incomplete or incorrect functionality.\n\nDo you wish to continue?"):
+                return False
+
+        try:
+            ipaddress = config.get(ni_fpga_section, 'ipaddress')
+            sendport = config.get(ni_fpga_section, 'sendport')
+        except configparser.NoOptionError as e:
+            if not show_warning(f"There is an issue with the configuration: {e}. This may prevent proper communication with the FPGA device.\n\nDo you wish to continue?"):
+                return False
+
+        try:
+            conn.settimeout(0.1)  # Set timeout to avoid blocking
+            conn.connect((ipaddress, int(sendport)))
+            conn.close()
+        except Exception as e:
+            if not show_warning(f"Failed to connect to the NI FPGA at {ipaddress}: {sendport}. Ensure that the LabVIEW Host is running and that the IP address and port are correctly configured. Continuing without resolving this issue may lead to unexpected behavior.\n\nDo you wish to continue?"):
+                return False
+
+        return True
+
+    
     def OnPrepareCockpit(self, event):
-        self.Hide()
-        self.OpenOutputWindow()
-        threading.Thread(target=self.LaunchDeviceServer, daemon=True).start()
-        countdown_frame = CountdownFrame(self, "Countdown", COUNTDOWN, self, self.depot_path)  # Pass 'self' to CountdownFrame
-        countdown_frame.Show(True)
+        def on_dependency_checked(result):
+            if result:
+                self.Hide()
+                self.OpenOutputWindow()
+                threading.Thread(target=self.LaunchDeviceServer, daemon=True).start()
+                countdown_frame = CountdownFrame(self, "Countdown", COUNTDOWN, self, self.depot_path)  # Pass 'self' to CountdownFrame
+                countdown_frame.Show(True)
+        self.CheckDependency(on_dependency_checked)
 
     def OpenOutputWindow(self):
         self.output_window = OutputWindow(self, "Device Server Logging")
@@ -119,8 +171,7 @@ class MainFrame(wx.Frame):
             pass
         finally:
             # Keep polling
-            if self.output_window:
-                # Re-run the polling method to continuously check for new output
+            if self.is_window_open:
                 wx.CallLater(100, self.PollOutputQueue)
 
     def LaunchDeviceServer(self):
@@ -226,7 +277,9 @@ class OutputWindow(wx.Frame):
     def OnClose(self, event):
         # This method is called when the window is closed.
         # TERMINATE the entire application.
-        self.Destroy()  # Ensure the output window is closed properly.
+        parent = self.GetParent()
+        parent.is_window_open = False  # Update the state to indicate the window is closed
+        self.Destroy()
         wx.CallAfter(wx.GetApp().ExitMainLoop)
 
 class CountdownFrame(wx.Frame):
