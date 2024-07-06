@@ -178,7 +178,7 @@ class MainFrame(wx.Frame):
             conn.connect((ipaddress, int(sendport)))
             conn.close()
         except Exception as e:
-            if not show_warning(f"Failed to connect to the NI FPGA at {ipaddress}: {sendport}. Ensure that the LabVIEW Host is running and that the IP address and port are correctly configured. Continuing without resolving this issue may lead to unexpected behavior.\n\nDo you wish to continue?"):
+            if not show_warning(f"Failed to connect to the NI FPGA at {ipaddress}: {sendport}. Ensure that FPGA VI is running and that the IP address and port are correctly configured. Continuing without resolving this issue may lead to unexpected behavior.\n\nDo you wish to continue?"):
                 return False
 
         return True

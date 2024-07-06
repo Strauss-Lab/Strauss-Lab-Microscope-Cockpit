@@ -126,7 +126,7 @@ class fpgaLaser(device.Device):
                 trigLine=trigLine))
             self._exposureTime = 100
             self.handlers.append(cockpit.handlers.fpgaLightSource.fpgaLightHandler(
-                self.name + ' ' + str(wavelength),  # name
+                self.name + ' ' + str(wavelength) + ' nm',  # name; this is the name displayed on light panels
                 self.name + ' ' + str(wavelength) + ' light source',  # groupName
                 {
                     'setExposureTime': lambda name, value: setattr(self, '_exposureTime', value),

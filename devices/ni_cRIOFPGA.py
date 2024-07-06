@@ -66,7 +66,7 @@ COCKPIT_AXES = {'x': 0, 'y': 1, 'z': 2, 'SI angle': -1}
 FPGA_IDLE_STATE = 3
 FPGA_ABORTED_STATE = 4
 FPGA_HEARTBEAT_RATE = .1  # At which rate is the FPGA sending update status signals
-MASTER_IP = '172.22.11.1'
+MASTER_IP = '172.22.11.1' # Host Computer IP; this must match the UDP Destination in LabVIEW
 UPDATE_RATE = 0.001
 
 class NIcRIO(executorDevices.ExecutorDevice):

@@ -24,10 +24,13 @@ import typing
 import wx
 
 import cockpit.interfaces.channels
+import cockpit.handlers
 from cockpit import depot, events
 from cockpit.util.colors import wavelengthToColor
 from cockpit.gui.device import EnableButton
 from cockpit.gui import safeControls
+
+import cockpit.handlers.fpgaLightPower
 
 
 class PanelLabel(wx.StaticText):
@@ -67,8 +70,12 @@ class LightPanel(wx.Panel):
 
         if lightPower is not None:
             self.Sizer.AddSpacer(4)
-            self.Sizer.Add(wx.StaticText(self, label='Power (%)'),
-                           flag=wx.ALIGN_CENTER_HORIZONTAL)
+            if isinstance(lightPower, cockpit.handlers.fpgaLightPower.fpgaLightPowerHandler):
+                self.Sizer.Add(wx.StaticText(self, label='Power (mW)'),
+                               flag=wx.ALIGN_CENTER_HORIZONTAL)
+            else:
+                self.Sizer.Add(wx.StaticText(self, label='Power (%)'),
+                                flag=wx.ALIGN_CENTER_HORIZONTAL)
             self.powCtrl = safeControls.SpinGauge(self, minValue=0.0, maxValue=100.0,
                                                   fetch_current=lambda: lightPower.getPower()*100.0)
             self.powCtrl.SetValue(lightPower.powerSetPoint *100.0)
