@@ -9,9 +9,11 @@
     Classes:
         - CockpitPilotApp: The main application class for initializing the GUI.
         - MainFrame: The main window of the application, containing various controls
-        and options for configuration and launching Cockpit.
+          and options for configuration and launching Cockpit.
         - DialogFrame: A dialog window for changing configuration file paths.
         - OutputWindow: A window for displaying logging output from the device server.
+          This window may occasionally encounter a RuntimeError where a wrapped C/C++
+          object of type TextCtrl has been deleted, typically upon window or application closure.
         - CountdownFrame: A window showing a countdown before launching the Cockpit main application.
 
     Functions:
@@ -21,7 +23,17 @@
         Run this module as the main entry point to start the Cockpit Pilot application.
         The application provides a graphical interface to configure settings, check
         dependencies, and launch the Cockpit software with logging capabilities.
+
+    Known Issue(s):
+        - RuntimeError: "wrapped C/C++ object of type TextCtrl has been deleted"
+          This error occurs occasionally upon exiting the OutputWindow or when the application
+          shuts down prematurely. The error is related to event handlers or other callbacks
+          attempting to interact with GUI components that have already been destroyed. Efforts
+          to address this issue should focus on ensuring that all background threads and
+          asynchronous operations are properly managed and synchronized with the main GUI thread,
+          especially during shutdown procedures.
 """
+
 
 import wx
 import threading
@@ -61,7 +73,7 @@ ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 class CockpitPilotApp(wx.App):
     def OnInit(self):
-        self.frame = MainFrame(None, title="Strauss Lab", size=(400, 180))
+        self.frame = MainFrame(None, title=myappid, size=(400, 200))
         self.frame.Show()
         return True
 

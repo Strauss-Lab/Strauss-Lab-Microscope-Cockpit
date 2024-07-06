@@ -43,38 +43,44 @@ class LightPanel(wx.Panel):
     def __init__(self, parent, lightToggle, lightPower=None, lightFilters=[]):
         super().__init__(parent, style=wx.BORDER_RAISED)
         self.light = lightToggle
+        self.lightPower = lightPower
         self.Sizer = wx.BoxSizer(wx.VERTICAL)
         self.button = EnableButton(self, self.light)
         self.button.setState(self.light.state)
 
-        expCtrl = safeControls.SafeSpinCtrlDouble(self, inc=5)
-        expCtrl.Bind(safeControls.EVT_SAFE_CONTROL_COMMIT,
+        self.expCtrl = safeControls.SafeSpinCtrlDouble(self, inc=5)
+        self.expCtrl.Bind(safeControls.EVT_SAFE_CONTROL_COMMIT,
                           lambda evt: self.light.setExposureTime(evt.Value))
-        lightToggle.addWatch('exposureTime', expCtrl.SetValue)
-        expCtrl.SetValue(lightToggle.exposureTime)
+        lightToggle.addWatch('exposureTime', self.expCtrl.SetValue)
+        self.expCtrl.SetValue(lightToggle.exposureTime)
 
         self.Sizer.Add(self.button, flag=wx.EXPAND)
         self.Sizer.AddSpacer(2)
-        line = wx.StaticBox(self, size=(-1,4), style=wx.LI_HORIZONTAL)
+        line_height = int(self.GetFont().GetFractionalPointSize() / 2.0)
+        line = wx.StaticText(self, label="", size=(-1, line_height))
         line.SetBackgroundColour(wavelengthToColor(self.light.wavelength))
         self.Sizer.Add(line, flag=wx.EXPAND)
 
         self.Sizer.Add(wx.StaticText(self, label='Exposure / ms'),
                        flag=wx.ALIGN_CENTER_HORIZONTAL)
-        self.Sizer.Add(expCtrl, flag=wx.EXPAND)
+        self.Sizer.Add(self.expCtrl, flag=wx.EXPAND)
 
         if lightPower is not None:
             self.Sizer.AddSpacer(4)
             self.Sizer.Add(wx.StaticText(self, label='Power (%)'),
                            flag=wx.ALIGN_CENTER_HORIZONTAL)
-            powCtrl = safeControls.SpinGauge(self, minValue=0.0, maxValue=100.0,
-                                             fetch_current=lambda: lightPower.getPower()*100.0)
-            powCtrl.SetValue(lightPower.powerSetPoint *100.0)
-            lightPower.addWatch('powerSetPoint',
-                                lambda p: powCtrl.SetValue(p *100.0))
-            powCtrl.Bind(safeControls.EVT_SAFE_CONTROL_COMMIT,
-                         lambda evt: lightPower.setPower(evt.Value /100.0))
-            self.Sizer.Add(powCtrl)
+            self.powCtrl = safeControls.SpinGauge(self, minValue=0.0, maxValue=100.0,
+                                                  fetch_current=lambda: lightPower.getPower()*100.0)
+            self.powCtrl.SetValue(lightPower.powerSetPoint *100.0)
+            lightPower.addWatch('powerSetPoint', self._SetPowerPercent)
+            self.powCtrl.Bind(safeControls.EVT_SAFE_CONTROL_COMMIT,
+                              lambda evt: lightPower.setPower(evt.Value /100.0))
+            self.Sizer.Add(self.powCtrl, 1, flag=wx.EXPAND)
+            self._timer = wx.Timer(self)
+            #set timer for 500 ms for each channel
+            self._timer.Start(500)
+            self.Bind(wx.EVT_TIMER, self.onTimer)
+
 
         if lightFilters:
             self.Sizer.AddSpacer(4)
@@ -83,6 +89,25 @@ class LightPanel(wx.Panel):
             for f in lightFilters:
                 self.Sizer.Add(f.makeSelector(self), flag=wx.EXPAND)
 
+        self.Bind(wx.EVT_WINDOW_DESTROY, self.OnDestroy)
+
+        self.Sizer.Layout()
+        self.SetSizerAndFit(self.Sizer)
+
+    #fucntion that wx.timer calls to check remote power
+    def onTimer(self, evt):
+        self.lightPower.lastPower = self.lightPower.callbacks['getPower']()
+
+
+    def OnDestroy(self, event: wx.WindowDestroyEvent) -> None:
+        self.light.removeWatch('exposureTime', self.expCtrl.SetValue)
+        if self.lightPower is not None:
+            self.lightPower.removeWatch('powerSetPoint', self._SetPowerPercent)
+            self._timer.Stop()
+        event.Skip()
+
+    def _SetPowerPercent(self,power):
+        self.powCtrl.SetValue(power *100.0)
 
     def SetFocus(self):
         # Sets focus to the main button to avoid accidental data entry
@@ -140,7 +165,7 @@ class fpgaAnaloguePanel(wx.Panel):
         self.Sizer.Layout()
         self.SetSizerAndFit(self.Sizer)
 
-    def OnDestroy(self, event: wx.WindowDestroyEvent):
+    def OnDestroy(self, event):
         self.line.removeWatch('valueSetPoint', self.valCtrl.SetValue)
         event.Skip()
 

@@ -50,6 +50,7 @@ class fpgaLightPowerHandler(deviceHandler.DeviceHandler):
         self.lastPower = curPower
         self.powerSetPoint = None
         self.isEnabled = isEnabled
+        self.callbacks['getPower'] = self.getPower
         
         fpgaLightPowerHandler._instances.append(self)  # Add instance to the list
 
