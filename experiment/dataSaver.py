@@ -192,10 +192,12 @@ class DataSaver:
                 filename = "%s.%s" % (savePath, formatString % i)
                 self.filehandles.append(open(filename, 'wb'))
                 self.filenames.append(filename)
+                print(f'File created: {filename}')
         else:
             # We have just a single filehandle with the save path as specified.
             self.filehandles.append(open(savePath, 'wb'))
             self.filenames.append(savePath)
+            print(f'File created: {savePath}')
 
         ## Lock on writing to each file.
         self.fileLocks = [threading.Lock() for handle in self.filehandles]
@@ -272,6 +274,7 @@ class DataSaver:
         for i, handle in enumerate(self.filehandles):
             with self.fileLocks[i]:
                 cockpit.util.datadoc.writeMrcHeader(self.headers[i], handle)
+                print(f'Header written for file: {self.filenames[i]}')
 
         ## List of how many images we've received, on a per-camera basis.
         self.imagesReceived = [0] * len(self.cameras)
@@ -386,26 +389,36 @@ class DataSaver:
 
     ## Receive new data, and add it to the queue.
     def onImage(self, cameraIndex, imageData, timestamp):
+        print(f'OnImage(): Image received from camera {cameraIndex}, at timestamp {timestamp}')
         self.imageQueue.put((cameraIndex, imageData, timestamp))
 
 
     ## Continually poll our imageQueue and save data to the file.
     @cockpit.util.threads.callInNewThread
     def saveData(self):
+        print('saveData(): Starting saveData thread')
         while not self.amDone:
             if self.shouldAbort:
+                print("Aborting saveData thread.")
                 # Do nothing.
                 return
-            cameraIndex, imageData, timestamp = self.imageQueue.get()
-            if self.firstTimestamp is None:
-                self.firstTimestamp = timestamp
-            # Store the timestamp as a rebased 32-bit float; we can't use
-            # 64-bit due to the file format restriction, and if we don't
-            # rebase then the numbers are big enough that we lose decimal
-            # precision.
-            timestamp = timestamp - self.firstTimestamp
-            self.writeImage(cameraIndex, imageData, timestamp)
-
+            try:
+                cameraIndex, imageData, timestamp = self.imageQueue.get()
+                if self.firstTimestamp is None:
+                    self.firstTimestamp = timestamp
+                # Store the timestamp as a rebased 32-bit float; we can't use
+                # 64-bit due to the file format restriction, and if we don't
+                # rebase then the numbers are big enough that we lose decimal
+                # precision.
+                timestamp = timestamp - self.firstTimestamp
+                print(f'Writing image from camera {cameraIndex}, at timestamp {timestamp}')
+                self.writeImage(cameraIndex, imageData, timestamp)
+            except queue.Empty:
+                continue
+            except Exception as e:
+                print(f'Exception in saveData: {e}')
+                raise
+            print('Exiting saveData thread')
 
     ## Write a single image to the file.
     def writeImage(self, cameraIndex, imageData, timestamp):
@@ -416,6 +429,7 @@ class DataSaver:
              % self.cameraToImagesPerRep[camera])
             in self.cameraToIgnoredImageIndices[camera]):
             # This image is one that should be discarded.
+            print(f'Discarding image from camera {cameraIndex}')
             return
 
         # Calculate the time and Z indices for the new image. This will in turn
@@ -501,8 +515,9 @@ class DataSaver:
                 handle.write(floatMetadataBuffer)
                 handle.seek(dataOffset)
                 handle.write(paddedBuffer)
+                print(f'Image written to file {self.filenames[fileIndex]} at timestamp={timestamp}')
             except Exception as e:
-                print ("Error writing image:",e)
+                print (f'Error writing image: {e}')
                 raise e
 
             self.imagesKept[cameraIndex] += 1
