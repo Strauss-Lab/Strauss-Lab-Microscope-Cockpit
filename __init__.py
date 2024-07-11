@@ -125,7 +125,7 @@ class CockpitApp(wx.App):
             numDevices = len(depot_config.sections()) + 1 # +1 for dummy devices
             numNonDevices = 15
             status = wx.ProgressDialog(parent = None,
-                    title = "Initializing OMX Cockpit",
+                    title = "Initializing Strauss Lab Cockpit v1.0",
                     message = "Importing modules...",
                     ## Fix maximum: + 1 is for dummy devices
                     maximum = numDevices + numNonDevices)

@@ -56,7 +56,7 @@ from cockpit.gui.guiUtils import EVT_COCKPIT_VALIDATION_ERROR
 
 class SingleSiteExperimentDialog(wx.Dialog):
     def __init__(self, parent):
-        super().__init__(parent, title="OMX single-site experiment", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        super().__init__(parent, title="Strauss Lab Single-Site Experiment", style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
         self.SetExtraStyle(wx.WS_EX_VALIDATE_RECURSIVELY)
         self.Bind(EVT_COCKPIT_VALIDATION_ERROR, self.onValidationError)
 

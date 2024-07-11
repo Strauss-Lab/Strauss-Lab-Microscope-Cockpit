@@ -72,7 +72,7 @@ FIELD_SIZE = (70, -1)
 class MultiSiteExperimentDialog(wx.Dialog):
     def __init__(self, parent):
         super().__init__(parent,
-                title = "OMX multi-site experiment",
+                title = "Strauss Lab Multi-Site Experiment",
                 style = wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
 
         ## Whether or not we should abort the current experiment.

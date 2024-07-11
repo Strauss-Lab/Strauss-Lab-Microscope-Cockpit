@@ -166,6 +166,7 @@ class Imager:
     @cockpit.util.threads.callInNewThread
     def videoMode(self):
         print("Entering video mode")
+        print(f"Active cameras: {self.activeCameras}")
         if not self.activeCameras:
             events.publish(cockpit.events.VIDEO_MODE_TOGGLE, False)
             print("No active cameras, exiting video mode")
@@ -181,6 +182,7 @@ class Imager:
         self.amInVideoMode = True
         print("Starting video mode")
         while not self.shouldStopVideoMode:
+            print(f"Active lights: {self.activeLights}")
             if not self.activeLights:
                 print("No active lights, exiting video mode")
                 break
@@ -203,6 +205,11 @@ class Imager:
         self.amInVideoMode = False
         events.publish(cockpit.events.VIDEO_MODE_TOGGLE, False)
         print("Exiting video mode")
+
+
+    ## Stop our video thread, if relevant.
+    def stopVideo(self):
+        self.shouldStopVideoMode = True
 
 
     ## Get the next time it's safe to call takeImage(), based on the
