@@ -146,7 +146,7 @@ class MicroscopeCamera(MicroscopeBase, CameraDevice):
         try:
             self._proxy.update_settings(self.settings)
         except Exception as e:
-            print (e)
+            print(f'In method setAnyDefaults: {e}')
         else:
             self.defaults = DEFAULTS_SENT
 
@@ -192,7 +192,7 @@ class MicroscopeCamera(MicroscopeBase, CameraDevice):
 
     @pauseVideo
     def enableCamera(self, name, shouldEnable):
-        print("Inside enable camera, microscopeCamera")
+        # print("Inside enable camera, microscopeCamera")
         """Enable the hardware."""
         if not shouldEnable:
             # Disable the camera, if it is enabled.
@@ -212,12 +212,12 @@ class MicroscopeCamera(MicroscopeBase, CameraDevice):
         # a copy. This workaround from Pyro4 maintainer.
         asproxy = Pyro4.Proxy(self._proxy._pyroUri)
         asproxy._pyroAsync()
-        print("Calling enable of microscope handler")
+        # print("Calling enable of microscope handler")
         result = asproxy.enable()
         result.wait(timeout=10)
         self.enabled = self._proxy.get_is_enabled()
         if self.enabled:
-            print("CAMERA ENABLED")
+            # print("CAMERA ENABLED")
             self.handlers[0].exposureMode = self._proxy.get_trigger_type()
             self.listener.connect()
         self.updateSettings()
@@ -278,15 +278,15 @@ class MicroscopeCamera(MicroscopeBase, CameraDevice):
     def receiveData(self, *args):
         """This function is called when data is received from the hardware."""
         (image, timestamp) = args
-        print("In receiveData method")
+        # print("In receiveData method")
         if not isinstance(image, Exception):
-            print("RECEIVED DATA, NO EXCEPTION")
+            # print("RECEIVED DATA, NO EXCEPTION")
             events.publish(events.NEW_IMAGE % self.name, image, timestamp)
         else:
             # Handle the dropped frame by publishing an empty image of the correct
             # size. Use the handler to fetch the size, as this will use a cached value,
             # if available.
-            print("RECEIVED DATA, EXCEPTION")
+            # print("RECEIVED DATA, EXCEPTION")
             events.publish(events.NEW_IMAGE % self.name,
                            np.zeros(self.handlers[0].getImageSize(), dtype=np.int16),
                            timestamp)

@@ -195,6 +195,7 @@ class Experiment:
     def run(self):
         # Returns True to close config dialog box, False or None otherwise.
         # Check if the user is set to save to an already-existing file.
+        print(f'\nWhile running the experiment, images saved under {self.savePath}\n')
         if self.savePath and os.path.exists(self.savePath):
             if not guiUtils.getUserPermission(
                     ("The file:\n%s\nalready exists. " % self.savePath) +

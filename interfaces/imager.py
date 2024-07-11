@@ -165,46 +165,46 @@ class Imager:
     # sample damage.
     @cockpit.util.threads.callInNewThread
     def videoMode(self):
-        print("Entering video mode")
-        print(f"Active cameras: {self.activeCameras}")
+        # print("Entering video mode")
+        # print(f"Active cameras: {self.activeCameras}")
         if not self.activeCameras:
             events.publish(cockpit.events.VIDEO_MODE_TOGGLE, False)
-            print("No active cameras, exiting video mode")
+            # print("No active cameras, exiting video mode")
             return
         if self.amInVideoMode:
             events.publish(cockpit.events.VIDEO_MODE_TOGGLE, False)
             self.stopVideo()
-            print("Stopping existing video mode")
+            # print("Stopping existing video mode")
             return
 
         events.publish(cockpit.events.VIDEO_MODE_TOGGLE, True)
         self.shouldStopVideoMode = False
         self.amInVideoMode = True
-        print("Starting video mode")
+        # print("Starting video mode")
         while not self.shouldStopVideoMode:
-            print(f"Active lights: {self.activeLights}")
+            # print(f"Active lights: {self.activeLights}")
             if not self.activeLights:
-                print("No active lights, exiting video mode")
+                # print("No active lights, exiting video mode")
                 break
-            print("Active lights found, continuing video mode")
+            # print("Active lights found, continuing video mode")
             # HACK: only wait for one camera.
             camera = list(self.activeCameras)[0]
-            print(f"Using camera: {camera.name}")
+            # print(f"Using camera: {camera.name}")
             timeout = 5.0 + ((camera.getExposureTime() + camera.getTimeBetweenExposures()) / 1000)
             try:
-                print("Waiting for new image...")
+                # print("Waiting for new image...")
                 events.executeAndWaitForOrTimeout(
                     events.NEW_IMAGE % (camera.name),
                     self.takeImage, timeout,
                     shouldBlock=True, shouldStopVideo=False)
             except Exception as e:
-                print("Video mode failed:", e)
+                # print("Video mode failed:", e)
                 events.publish(cockpit.events.VIDEO_MODE_TOGGLE, False)
                 traceback.print_exc()
                 break
         self.amInVideoMode = False
         events.publish(cockpit.events.VIDEO_MODE_TOGGLE, False)
-        print("Exiting video mode")
+        # print("Exiting video mode")
 
 
     ## Stop our video thread, if relevant.

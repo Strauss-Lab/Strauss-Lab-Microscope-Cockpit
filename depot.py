@@ -135,7 +135,7 @@ class DeviceDepot:
             try:
                 device = cls(name, device_config)
             except Exception as e:
-                raise RuntimeError("Failed to construct device '%s'" % name, e)
+                raise RuntimeError(f"Failed to construct device '{name}', device config: {device_config}", e)
             self.nameToDevice[name] = device
 
         # Initialize devices in order of dependence
