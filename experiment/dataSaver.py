@@ -198,12 +198,10 @@ class DataSaver:
                 filename = "%s.%s" % (savePath, formatString % i)
                 self.filehandles.append(open(filename, 'wb'))
                 self.filenames.append(filename)
-                print(f'File created: {filename}')
         else:
             # We have just a single filehandle with the save path as specified.
             self.filehandles.append(open(savePath, 'wb'))
             self.filenames.append(savePath)
-            print(f'File created: {savePath}')
 
         ## Lock on writing to each file.
         self.fileLocks = [threading.Lock() for handle in self.filehandles]
@@ -280,7 +278,6 @@ class DataSaver:
         for i, handle in enumerate(self.filehandles):
             with self.fileLocks[i]:
                 cockpit.util.datadoc.writeMrcHeader(self.headers[i], handle)
-                print(f'Header written for file: {self.filenames[i]}')
 
         ## List of how many images we've received, on a per-camera basis.
         self.imagesReceived = [0] * len(self.cameras)
@@ -318,13 +315,9 @@ class DataSaver:
     # unsubscribe later. Initialize self.minMaxVals. Start our status-update
     # thread.
     def startCollecting(self):
-        # DEBUG
-        print('startCollecting(): Subscribing to image events')
         for camera in self.cameras:
             def func(data, timestamp, camera=camera):
                 return self.onImage(self.cameraToIndex[camera], data, timestamp)
-            # DEBUG
-            print(f'startCollecting(): Subscribed to {events.NEW_IMAGE % camera.name}')
             self.lambdas.append(func)
             events.subscribe(events.NEW_IMAGE % camera.name, func)
 
@@ -344,8 +337,8 @@ class DataSaver:
     def executeAndSave(self):
         # Joining the thread doesn't actually work until it has started,
         # hence the delay here.
-        time.sleep(.5)
-        self.runThread.join()
+        # time.sleep(.5)
+        # self.runThread.join()
 
         # Wait until it's been a bit without getting any more images in, or
         # until we have all the images we expected to get for each camera.
@@ -399,17 +392,14 @@ class DataSaver:
 
     ## Receive new data, and add it to the queue.
     def onImage(self, cameraIndex, imageData, timestamp):
-        print(f'OnImage(): Image received from camera {cameraIndex}, at timestamp {timestamp}')
         self.imageQueue.put((cameraIndex, imageData, timestamp))
 
 
     ## Continually poll our imageQueue and save data to the file.
     @cockpit.util.threads.callInNewThread
     def saveData(self):
-        print('saveData(): Starting saveData thread')
         while not self.amDone:
             if self.shouldAbort:
-                print("Aborting saveData thread.")
                 # Do nothing.
                 return
             try:
@@ -421,15 +411,12 @@ class DataSaver:
                 # rebase then the numbers are big enough that we lose decimal
                 # precision.
                 timestamp = timestamp - self.firstTimestamp
-                print(f'Writing image from camera {cameraIndex}, at timestamp {timestamp}')
                 self.writeImage(cameraIndex, imageData, timestamp)
             except queue.Empty:
-                print('saveData(): Image queue is empty')
                 continue
             except Exception as e:
                 print(f'Exception in saveData: {e}')
                 raise
-        print('Exiting saveData thread')
 
     ## Write a single image to the file.
     def writeImage(self, cameraIndex, imageData, timestamp):
@@ -440,9 +427,7 @@ class DataSaver:
              % self.cameraToImagesPerRep[camera])
             in self.cameraToIgnoredImageIndices[camera]):
             # This image is one that should be discarded.
-            print(f'Discarding image from camera {cameraIndex}')
             return
-
         # Calculate the time and Z indices for the new image. This will in turn
         # help us to calculate which file to write to and the offset of the
         # image in the file.
@@ -457,7 +442,6 @@ class DataSaver:
         numCameras = len(self.cameras)
         planeIndex = (int(timepoint * self.maxImagesPerRep * numCameras)
                       + (zIndex * numCameras) + cameraIndex)
-
         ## Offsets for the plane metadata in the extended header, and
         ## for the plane data in the image section.  1024 is the
         ## length of the base header.
@@ -466,7 +450,6 @@ class DataSaver:
                       + (planeIndex * self.planeBytes))
 
         height, width = imageData.shape
-
         # Pad with zeros. I wouldn't normally think this would be
         # necessary, but we get "invalid argument" errors when writing
         # to the filehandle if we don't.
@@ -474,13 +457,11 @@ class DataSaver:
         paddedBuffer = numpy.zeros((self.maxHeight, self.maxWidth),
                                    dtype=numpy.uint16)
         paddedBuffer[:height, :width] = imageData
-
         imageMin = imageData.min()
         imageMax = imageData.max()
 
         ex_wavelength = self.cameraToExcitation[camera]
         em_wavelength = camera.wavelength
-
         with self.fileLocks[fileIndex]:
             handle = self.filehandles[fileIndex]
 
@@ -519,14 +500,12 @@ class DataSaver:
             # TODO floatMetadataBuffer[8] could be exposure time in seconds
             floatMetadataBuffer[10] = ex_wavelength
             floatMetadataBuffer[11] = em_wavelength
-
             try:
                 handle.seek(metadataOffset)
                 handle.write(intMetadataBuffer)
                 handle.write(floatMetadataBuffer)
                 handle.seek(dataOffset)
                 handle.write(paddedBuffer)
-                print(f'Image written to file {self.filenames[fileIndex]} at timestamp={timestamp}')
             except Exception as e:
                 print (f'Error writing image: {e}')
                 raise e

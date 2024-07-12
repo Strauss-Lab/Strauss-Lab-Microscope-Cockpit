@@ -183,9 +183,9 @@ class Imager:
         # print("Starting video mode")
         while not self.shouldStopVideoMode:
             # print(f"Active lights: {self.activeLights}")
-            if not self.activeLights:
-                # print("No active lights, exiting video mode")
-                break
+            # if not self.activeLights:
+            #     # print("No active lights, exiting video mode")
+            #     break
             # print("Active lights found, continuing video mode")
             # HACK: only wait for one camera.
             camera = list(self.activeCameras)[0]

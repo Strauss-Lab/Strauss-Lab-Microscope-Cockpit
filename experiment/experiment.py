@@ -233,13 +233,11 @@ class Experiment:
         # display appropriate warnings.
         self.lastMinuteActions()
         
-        print('Starting experiment execution thread.')
         self._run_thread = threading.Thread(target=self.execute,
                                             name="Experiment-execute")
         self._run_thread.start()
 
         saveThread = None
-        print(f'Image save precondition check: {self.savePath} with image counts {str(self.cameraToImageCount.values())}')
 
         if self.savePath and max(self.cameraToImageCount.values()):
 
@@ -260,7 +258,6 @@ class Experiment:
                         continue
                     cameraToExcitation[camera] = max(cameraToExcitation[camera],
                                                      max_wavelength)
-            print('Initializing DataSaver.')
             saver = dataSaver.DataSaver(self.cameras, self.numReps,
                                         self.cameraToImageCount,
                                         self.cameraToIgnoredImageIndices,
@@ -268,7 +265,6 @@ class Experiment:
                                         self.sliceHeight, self.generateTitles(),
                                         cameraToExcitation)
             saver.startCollecting()
-            print('Starting DataSaver executeAndSave thread.')
             saveThread = threading.Thread(target=saver.executeAndSave,
                                           name="Experiment-execute-save")
             saveThread.start()
@@ -277,7 +273,6 @@ class Experiment:
         cleanup_thread = threading.Thread(target=self.cleanup,
                                           args=[self._run_thread, saveThread],
                                           name="Experiment-cleanup")
-        print('Starting cleanup thread.')
         cleanup_thread.start()
         return True
 
