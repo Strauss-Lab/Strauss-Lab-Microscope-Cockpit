@@ -163,7 +163,7 @@ class ExecutorHandler(deviceHandler.DeviceHandler):
             if h in self.analogClients:
                 # update analog state
                 lineHandler = self.analogClients[h]
-                if isinstance(args, collections.Iterable):
+                if isinstance(args, collections.abc.Iterable):
                     # Using an indexed position
                     pos = lineHandler.indexedPosition(*args)
                 else:

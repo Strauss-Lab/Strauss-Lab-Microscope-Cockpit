@@ -67,6 +67,11 @@ import wx
 ## Unique ID for identifying saver instances
 uniqueID = 0
 
+''' Tips to identify where the process might be failing (not saving any image)
+        1. Event subscription are correctly set up and receiving images
+        2. The image queue is being processed and not empty
+        3. Images are being written to the files correctly
+'''
 
 ## This class simply records all data received during an experiment and saves
 # it to disk in MRC format.
@@ -95,6 +100,7 @@ class DataSaver:
         self.cameraToImagesPerRep = cameraToImagesPerRep
         self.cameraToIgnoredImageIndices = cameraToIgnoredImageIndices
         self.runThread = runThread
+        self.savePath = savePath
 
         ## We want to write the excitation wavelength for each image
         ## on the metadata (see issue #290).  We only allow one
@@ -312,9 +318,13 @@ class DataSaver:
     # unsubscribe later. Initialize self.minMaxVals. Start our status-update
     # thread.
     def startCollecting(self):
+        # DEBUG
+        print('startCollecting(): Subscribing to image events')
         for camera in self.cameras:
             def func(data, timestamp, camera=camera):
                 return self.onImage(self.cameraToIndex[camera], data, timestamp)
+            # DEBUG
+            print(f'startCollecting(): Subscribed to {events.NEW_IMAGE % camera.name}')
             self.lambdas.append(func)
             events.subscribe(events.NEW_IMAGE % camera.name, func)
 
@@ -414,11 +424,12 @@ class DataSaver:
                 print(f'Writing image from camera {cameraIndex}, at timestamp {timestamp}')
                 self.writeImage(cameraIndex, imageData, timestamp)
             except queue.Empty:
+                print('saveData(): Image queue is empty')
                 continue
             except Exception as e:
                 print(f'Exception in saveData: {e}')
                 raise
-            print('Exiting saveData thread')
+        print('Exiting saveData thread')
 
     ## Write a single image to the file.
     def writeImage(self, cameraIndex, imageData, timestamp):

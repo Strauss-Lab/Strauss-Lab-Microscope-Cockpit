@@ -84,20 +84,69 @@ class SISingleZ(experiment.Experiment):
                 prev_phase = phase
                 table.addAction(curTime, self.phaseHandler, phase)
                 curTime += decimal.Decimal(self.phaseTime)
-            curTime = self.exposeSingle(curTime, self.cameras, self.lights[color], table)
+            curTime = self.expose(curTime, self.cameras, self.lights[color], table)
             curTime += decimal.Decimal(self.stepTime)
         # print(f'Printing Generated Action Table:\n{table}')
         return table
 
-    def exposeSingle(self, curTime, cameras, light, table):
-        table.addAction(curTime, light, True)   # Turn on light
-        table.addAction(curTime + decimal.Decimal(self.lightTime), light, False)
+    def expose(self, curTime, cameras, light, table):
+        # First, determine which cameras are not ready to be exposed, because
+        # they may have seen light they weren't supposed to see (due to
+        # bleedthrough from other cameras' exposures). These need to be
+        # triggered (and we need to record that we want to throw away those
+        # images) before we can proceed with the real exposure.
+        camsToReset = set()
         for camera in cameras:
-            cameraReadyTime = self.getTimeWhenCameraCanExpose(table, camera)
-            exposureStartTime = max(curTime, cameraReadyTime)
-            exposureEndTime = exposureStartTime + decimal.Decimal(self.cameraTime) # Some fixed exposure duration
-            table.addAction(exposureStartTime, camera, True) # Start camera exposure
-            table.addAction(exposureEndTime, camera, False) # End camera 
+            if not self.cameraToIsReady[camera]:
+                camsToReset.add(camera)
+        if camsToReset:
+            curTime = self.resetCams(curTime, camsToReset, table)
+            
+        # Determine when we can start the exposure, based on camera readiness
+        exposureStartTime = curTime
+        for camera in cameras:
+            camExposureReadyTime = self.getTimeWhenCameraCanExpose(table, camera)
+            exposureStartTime = max(exposureStartTime, camExposureReadyTime)
+        
+        # Determine the end time of the exposure
+        exposureEndTime = exposureStartTime + decimal.Decimal(self.cameraTime) # Some user-configurable duration
+        
+        # Add actions to turn on the light and then turn it off after the specified duration
+        table.addAction(exposureStartTime, light, True)  # Turn on light
+        table.addAction(exposureStartTime + decimal.Decimal(self.lightTime), light, False)  # Turn off light
+    
+        # Trigger the cameras
+        usedCams = set()
+        for camera in cameras:
+            usedCams.add(camera)
+            mode = camera.getExposureMode()
+            if mode == cockpit.handlers.camera.TRIGGER_AFTER:
+                table.addToggle(exposureEndTime, camera)
+            elif mode == cockpit.handlers.camera.TRIGGER_DURATION:
+                table.addAction(exposureStartTime, camera, True)
+                table.addAction(exposureEndTime, camera, False)
+            elif mode == cockpit.handlers.camera.TRIGGER_DURATION_PSEUDOGLOBAL:
+                # We added some security time to the readout time that
+                # we have to remove now
+                cameraExposureStartTime = (exposureStartTime
+                                        - self.cameraToReadoutTime[camera]
+                                        - decimal.Decimal(0.005))
+                table.addAction(cameraExposureStartTime, camera, True)
+                table.addAction(exposureEndTime, camera, False)
+            elif mode == cockpit.handlers.camera.TRIGGER_BEFORE:
+                table.addToggle(exposureStartTime, camera)
+            elif mode == cockpit.handlers.camera.TRIGGER_SOFT:
+                table.addAction(exposureStartTime, camera, True)
+            else:
+                raise Exception ('%s has no trigger mode set.' % camera)
+            self.cameraToImageCount[camera] += 1
+        
+        for camera in self.cameras:
+            if (camera not in usedCams and
+                camera.getExposureMode() == cockpit.handlers.camera.TRIGGER_AFTER):
+                # Camera is a continuous-exposure/frame-transfer camera
+                # and therefore saw light it shouldn't have; invalidate it.
+                self.cameraToIsReady[camera] = False
 
         return exposureEndTime
 

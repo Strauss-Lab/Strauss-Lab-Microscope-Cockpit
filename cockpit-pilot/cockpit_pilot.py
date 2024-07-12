@@ -1,28 +1,31 @@
 """
-    Strauss Lab Cockpit Pilot Application v1.0
+    Strauss Lab Cockpit Pilot Application v1.01
 
     This module defines the GUI application for the Cockpit Pilot, which is used to
     configure and launch the Cockpit microscopy software. The application includes
-    features for setting configuration paths, verifying dependencies, and launching
-    the Cockpit software.
+    features for setting configuration paths, verifying dependencies, launching the
+    Cockpit software, and viewing microscopy images with metadata.
 
     Classes:
-        - CockpitPilotApp: The main application class for initializing the GUI.
+        - CockpitPilotApp: The main application class for initializing the GUI
         - MainFrame: The main window of the application, containing various controls
-          and options for configuration and launching Cockpit.
-        - DialogFrame: A dialog window for changing configuration file paths.
+          and options for configuration and launching Cockpit
+        - DialogFrame: A dialog window for changing configuration file paths
         - OutputWindow: A window for displaying logging output from the device server.
           This window may occasionally encounter a RuntimeError where a wrapped C/C++
           object of type TextCtrl has been deleted, typically upon window or application closure.
-        - CountdownFrame: A window showing a countdown before launching the Cockpit main application.
+        - CountdownFrame: A window showing a countdown before launching the Cockpit main application
+        - ImageNavigator: A window for viewing microscopy images with navigation and metadata display
 
     Functions:
-        - my_font(size): Utility function for creating wx.Font objects with specified size and style.
+        - display_images_from_mrc(file_path): Opens and displays images from an MRC file (beta)
+        - my_font(size): Utility function for creating wx.Font objects with specified size and style
 
     Usage:
         Run this module as the main entry point to start the Cockpit Pilot application.
         The application provides a graphical interface to configure settings, check
-        dependencies, and launch the Cockpit software with logging capabilities.
+        dependencies, launch the Cockpit software, and view microscopy images with
+        detailed metadata.
 
     Known Issue(s):
         - RuntimeError: "wrapped C/C++ object of type TextCtrl has been deleted"
@@ -32,21 +35,22 @@
           to address this issue should focus on ensuring that all background threads and
           asynchronous operations are properly managed and synchronized with the main GUI thread,
           especially during shutdown procedures.
+
+    Copyright 2024 Strauss Lab
 """
 
-
-import wx
-import threading
-import socket
-import configparser
-import queue
-import subprocess
-import psutil
-import time
-import os
+import wx, threading, socket, configparser, queue, subprocess, psutil, time, os
 import importlib.util
+import mrcfile
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backend_bases import NavigationToolbar2
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5 import NavigationToolbar2QT as NavigationToolbar
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QPushButton, QWidget, QTextEdit
 
-MAIN_SIZE = (600, 250)
+MAIN_SIZE = (800, 250)
 DIALOG_SIZE = (700, 120)
 COUNTDOWN = 3
 
@@ -68,19 +72,19 @@ ICON_PATH = os.path.join(pilot_path, 'strauss_lab_logo_red.ico')
 
 # Apply the task bar icon fix
 import ctypes
-myappid = 'Strauss Lab Cockpit v1.0'
+myappid = 'Strauss Lab Cockpit v1.01'
 ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 class CockpitPilotApp(wx.App):
     def OnInit(self):
-        self.frame = MainFrame(None, title=myappid, size=(400, 200))
+        self.frame = MainFrame(None, title=myappid)
         self.frame.Show()
         return True
 
 class MainFrame(wx.Frame):
     def __init__(self, *args, **kw):
         super(MainFrame, self).__init__(*args, **kw)
-        
+
         self.config_path = CONFIG_PATH
         self.depot_path = DEPOT_PATH
         self.output_queue = queue.Queue()
@@ -93,19 +97,19 @@ class MainFrame(wx.Frame):
         self.InitUI()
         self.SetSize(MAIN_SIZE)
         self.Centre()
-        
+
     def InitUI(self):
         panel = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
-        
+
         welcome_label = wx.StaticText(panel, label="\n Welcome to Cockpit! \n", style=wx.ALIGN_CENTER)
         welcome_label.SetFont(my_font(18))
         vbox.Add(welcome_label, flag=wx.ALL | wx.EXPAND, border=10)
-        
+
         info_label = wx.StaticText(panel, label=" Get ready to explore the microscopic world! \n", style=wx.ALIGN_CENTER)
         info_label.SetFont(my_font(12))
         vbox.Add(info_label, flag=wx.ALL | wx.EXPAND, border=10)
-        
+
         button_sizer = wx.BoxSizer(wx.HORIZONTAL)
         config_button = wx.Button(panel, label=" Change Config File Path... ")
         config_button.Bind(wx.EVT_BUTTON, self.OnChangeConfigPath)
@@ -114,13 +118,17 @@ class MainFrame(wx.Frame):
         depot_button = wx.Button(panel, label=" Open Depot Configuration ")
         depot_button.Bind(wx.EVT_BUTTON, self.OnOpenDepotFile)
         button_sizer.Add(depot_button, flag=wx.RIGHT, border=10)
-        
+
+        mrc_viewer_button = wx.Button(panel, label=" Open Image Viewer (Beta) ")
+        mrc_viewer_button.Bind(wx.EVT_BUTTON, self.OnOpenImageViewer)
+        button_sizer.Add(mrc_viewer_button, flag=wx.RIGHT, border=10)
+
         launch_button = wx.Button(panel, label="    Launch Cockpit    ")
         launch_button.Bind(wx.EVT_BUTTON, self.OnPrepareCockpit)
         button_sizer.Add(launch_button)
-        
+
         vbox.Add(button_sizer, flag=wx.ALIGN_CENTER | wx.TOP | wx.BOTTOM, border=10)
-        
+
         panel.SetSizer(vbox)
 
     def OnChangeConfigPath(self, event):
@@ -137,11 +145,16 @@ class MainFrame(wx.Frame):
         except psutil.NoSuchProcess:
             pass
 
+    def OnOpenImageViewer(self, event):
+        file_path = wx.FileSelector("Choose an Image File to View...")
+        if file_path:
+            display_images_from_mrc(file_path)
+
     def CheckDependency(self, callback) -> None:
         def worker():
             result = self._check_dependency()
             wx.CallAfter(callback, result)
-        
+
         threading.Thread(target=worker, daemon=True).start()
 
     def _check_dependency(self) -> bool:
@@ -183,7 +196,6 @@ class MainFrame(wx.Frame):
 
         return True
 
-    
     def OnPrepareCockpit(self, event):
         def on_dependency_checked(result):
             if result:
@@ -216,9 +228,9 @@ class MainFrame(wx.Frame):
         proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
         for line in iter(proc.stdout.readline, ''):
             self.output_queue.put(line)
-            
+
         proc.stdout.close()
-        proc.wait() 
+        proc.wait()
 
 class DialogFrame(wx.Frame):
     def __init__(self, parent, title, size):
@@ -371,6 +383,128 @@ class CountdownFrame(wx.Frame):
         proc.wait()
         if proc.returncode != 0 and self.main_frame_ref.is_window_open:  # Check if the window is still open
             wx.CallAfter(wx.MessageBox, "Cockpit exited with an error.", "Error", wx.OK | wx.ICON_ERROR)
+
+class ImageNavigator(QMainWindow):
+    def __init__(self, data, header, num_images):
+        super().__init__()
+        self.data = data
+        self.header = header
+        self.num_images = data.shape[0] if data.ndim > 2 else 1
+        self.current_index = 0
+        self.num_images = num_images
+        
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle('MRC Image Viewer')
+        
+        # Set the application icon
+        app_icon = QIcon(ICON_PATH)
+        self.setWindowIcon(app_icon)
+        
+        self.canvas = FigureCanvas(plt.Figure())
+        self.ax = self.canvas.figure.subplots()
+        self.image_display = self.ax.imshow(self.data[self.current_index, :, :], cmap='gray')
+        self.ax.set_title(f"Image {self.current_index + 1}")
+        self.ax.axis('off')
+
+        self.toolbar = NavigationToolbar(self.canvas, self)
+        self.addToolBar(self.toolbar)
+
+        self.prev_button = QPushButton('Previous', self)
+        self.prev_button.clicked.connect(self.prev_image)
+        self.toolbar.addWidget(self.prev_button)
+
+        self.next_button = QPushButton('Next', self)
+        self.next_button.clicked.connect(self.next_image)
+        self.toolbar.addWidget(self.next_button)
+
+        self.metadata_display = QTextEdit(self)
+        self.metadata_display.setReadOnly(True)
+
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.addWidget(self.canvas)
+        layout.addWidget(self.metadata_display)
+        self.setCentralWidget(widget)
+
+        self.update_display()
+        self.show()
+
+    def update_display(self):
+        self.image_display.set_data(self.data[self.current_index, :, :])
+        self.ax.set_title(f"Image {self.current_index + 1}/{self.num_images}")
+        self.update_metadata(self.current_index)
+        self.canvas.draw()
+
+    def prev_image(self):
+        if self.current_index > 0:
+            self.current_index -= 1
+            self.update_display()
+
+    def next_image(self):
+        if self.current_index < self.num_images - 1:
+            self.current_index += 1
+            self.update_display()
+
+    def update_metadata(self, index):
+        metadata_text = self.generate_metadata_text(index)
+        self.metadata_display.setPlainText(metadata_text)
+
+    def generate_metadata_text(self, index):
+        metadata_lines = []
+        metadata_lines.append("\nMetadata for current image:")
+        metadata_lines.append(f"Number of columns: {self.header.nx}")
+        metadata_lines.append(f"Number of rows: {self.header.ny}")
+        metadata_lines.append(f"Number of sections: {self.header.nz}")
+        metadata_lines.append(f"Pixel spacing (angstroms): {self.header.cella}")
+        metadata_lines.append(f"Map mode: {self.header.mode}")
+        metadata_lines.append(f"Start point of sub-volume (x, y, z): ({self.header.nxstart}, {self.header.nystart}, {self.header.nzstart})")
+        metadata_lines.append(f"Number of intervals along x, y, z: ({self.header.mx}, {self.header.my}, {self.header.mz})")
+        metadata_lines.append(f"Min, Max, Mean density: {self.header.dmin}, {self.header.dmax}, {self.header.dmean}")
+        metadata_lines.append(f"Is this a volumetric map? {'Yes' if self.header.ispg == 0 else 'No'}")
+        if hasattr(self.header, 'next'):
+            metadata_lines.append(f"Number of bytes in extended header: {self.header.next}")
+        else:
+            metadata_lines.append("Number of bytes in extended header: Not available")
+        if hasattr(self.header, 'imodStamp'):
+            metadata_lines.append(f"Image type (0=image, 1=diffraction): {self.header.imodStamp}")
+        else:
+            metadata_lines.append("Image type (0=image, 1=diffraction): Not available")
+
+        # Displaying metadata for previous and next images
+        if index > 0:
+            metadata_lines.append("\nMetadata for previous image:")
+            metadata_lines.extend(self.generate_basic_metadata_text(index - 1))
+        if index < self.num_images - 1:
+            metadata_lines.append("\nMetadata for next image:")
+            metadata_lines.extend(self.generate_basic_metadata_text(index + 1))
+
+        return "\n".join(metadata_lines)
+
+    def generate_basic_metadata_text(self, index):
+        metadata_lines = []
+        metadata_lines.append(f"Image {index + 1}:")
+        metadata_lines.append(f"Min, Max density: {np.min(self.data[index])}, {np.max(self.data[index])}")
+        return metadata_lines
+
+def display_images_from_mrc(file_path):
+    try:
+        with mrcfile.open(file_path, permissive=True) as mrc:
+            # Read the image data and header
+            data = mrc.data
+            header = mrc.header
+
+            # Determine the number of images in the stack
+            num_images = data.shape[0] if data.ndim > 2 else 1
+
+            # Display images with navigation and metadata
+            app = QApplication([])
+            navigator = ImageNavigator(data, header, num_images)
+            app.exec_()
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 def my_font(size=10):
     '''             Example of USE: 

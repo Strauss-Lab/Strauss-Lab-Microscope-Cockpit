@@ -195,7 +195,7 @@ class Experiment:
     def run(self):
         # Returns True to close config dialog box, False or None otherwise.
         # Check if the user is set to save to an already-existing file.
-        print(f'\nWhile running the experiment, images saved under {self.savePath}\n')
+        print(f'\nThe experiment images are saved under {self.savePath}\n')
         if self.savePath and os.path.exists(self.savePath):
             if not guiUtils.getUserPermission(
                     ("The file:\n%s\nalready exists. " % self.savePath) +
@@ -232,12 +232,15 @@ class Experiment:
         # ToDo: check duration of action table against timelapse settings
         # display appropriate warnings.
         self.lastMinuteActions()
-
+        
+        print('Starting experiment execution thread.')
         self._run_thread = threading.Thread(target=self.execute,
                                             name="Experiment-execute")
         self._run_thread.start()
 
         saveThread = None
+        print(f'Image save precondition check: {self.savePath} with image counts {str(self.cameraToImageCount.values())}')
+
         if self.savePath and max(self.cameraToImageCount.values()):
 
             cameraToExcitation = {c: 0.0 for c in self.cameras}
@@ -257,7 +260,7 @@ class Experiment:
                         continue
                     cameraToExcitation[camera] = max(cameraToExcitation[camera],
                                                      max_wavelength)
-
+            print('Initializing DataSaver.')
             saver = dataSaver.DataSaver(self.cameras, self.numReps,
                                         self.cameraToImageCount,
                                         self.cameraToIgnoredImageIndices,
@@ -265,6 +268,7 @@ class Experiment:
                                         self.sliceHeight, self.generateTitles(),
                                         cameraToExcitation)
             saver.startCollecting()
+            print('Starting DataSaver executeAndSave thread.')
             saveThread = threading.Thread(target=saver.executeAndSave,
                                           name="Experiment-execute-save")
             saveThread.start()
@@ -273,6 +277,7 @@ class Experiment:
         cleanup_thread = threading.Thread(target=self.cleanup,
                                           args=[self._run_thread, saveThread],
                                           name="Experiment-cleanup")
+        print('Starting cleanup thread.')
         cleanup_thread.start()
         return True
 
@@ -419,7 +424,7 @@ class Experiment:
     def cleanup(self, runThread = None, saveThread = None):
         if runThread is not None:
             runThread.join()
-        if saveThread is not None and saveThread.isAlive():
+        if saveThread is not None and saveThread.is_alive():
             events.publish(events.UPDATE_STATUS_LIGHT, 'device waiting',
                            'Waiting for saving to complete')
             saveThread.join()
