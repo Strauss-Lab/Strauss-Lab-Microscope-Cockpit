@@ -306,6 +306,7 @@ class Experiment:
         # Prepare our position.
         cockpit.interfaces.stageMover.goToZ(self.altBottom, shouldBlock = True)
         self.zStart = cockpit.interfaces.stageMover.getAllPositions()[-1][-1]
+        print(f'In prepareHandlers, zStart={self.zStart}')
         events.publish(events.PREPARE_FOR_EXPERIMENT, self)
         # Prepare cameras.
         for camera in self.cameras:

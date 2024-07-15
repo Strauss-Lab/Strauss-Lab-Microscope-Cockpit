@@ -480,6 +480,7 @@ class ExperimentConfigPanel(wx.Panel):
                     exposureSettings.append(([camera], settings))
 
             altitude = cockpit.interfaces.stageMover.getPositionForAxis(2)
+            print(f'In runExperiment, altitude={altitude}')
             # Default to "current is bottom"
             altBottom = altitude
             zHeight = guiUtils.tryParseNum(self.stackHeight, float)
@@ -495,6 +496,9 @@ class ExperimentConfigPanel(wx.Panel):
                 zHeight = 1e-6
                 sliceHeight = 1e-6
 
+            # DEBUG 
+            print(f'While running the experiment, altBottom={altBottom}, zHeight={zHeight}, sliceHeight={sliceHeight}')
+            
             savePath = os.path.join(cockpit.util.files.getUserSaveDir(), self.filename.GetValue())
             params = {
                     'numReps': guiUtils.tryParseNum(self.numReps),

@@ -28,9 +28,12 @@ COLLECTION_ORDERS = {
     "Z, Color, Phase, Angle": (3, 2, 1, 0),
 }
 
-class SISingleZ(experiment.Experiment):
+#TODO: Stage mover handling, get the optimal time for movement; hint for users about 
+#      the meanings of the time variables.
+
+class StraussSI(experiment.Experiment):
     def __init__(self, collectionOrder="Z, Color, Angle, Phase",
-                 numAngle=3, numPhase=5, numZ=3,
+                 numAngle=3, numPhase=5,
                  stageTime=100.0, attTime=100.0, angleTime=100.0, phaseTime=100.0, stepTime=100.0,
                  lightTime=200.0, cameraTime=200.0, onlyCentre=False,
                  *args, **kwargs):
@@ -38,14 +41,15 @@ class SISingleZ(experiment.Experiment):
         self.lights = []
         for light in depot.getHandlersOfType(depot.LIGHT_TOGGLE):
             if light.getIsEnabled():
-                self.lights.append(light)
+                self.lights.append(light)   # Get all enabled light sources
         self.angleHandler = depot.getHandlerWithName('FPGA Angle')
         self.phaseHandler = depot.getHandlerWithName('FPGA Phase')
         self.attHandler = depot.getHandlerWithName('FPGA Attenuator')
+
         self.collectionOrder = collectionOrder
         self.numAngle = 1 if onlyCentre else numAngle
         self.numPhase = numPhase
-        self.numZ = numZ
+        self.numZ = int(self.zHeight/self.sliceHeight)
         self.stageTime = stageTime
         self.attTime = attTime
         self.angleTime = angleTime
@@ -163,10 +167,10 @@ class SISingleZ(experiment.Experiment):
                         phase = vals[ordering.index(1)]
                         color = vals[ordering.index(2)]
                         yield (angle, phase, color, z)
-            z += self.zHeight / 15
+            z += self.sliceHeight # Increment the z step
 
 ## A consistent name to use to refer to the class itself.
-EXPERIMENT_CLASS = SISingleZ
+EXPERIMENT_CLASS = StraussSI
 
 class BaseTestExperimentUI(wx.Panel):
     """Base Experiment UI for Test experiments.
@@ -196,7 +200,6 @@ class BaseTestExperimentUI(wx.Panel):
         num_val_sizer = wx.FlexGridSizer(6, 5, 5)  # 6 columns (including text), 5px gap
         self.createInput(num_val_sizer, "Number of angles:", 'numAngle', validator=IntValidator())
         self.createInput(num_val_sizer, "Number of phases:", 'numPhase', validator=IntValidator())
-        self.createInput(num_val_sizer, "Number of z:", 'numZ', validator=IntValidator())
 
         main_sizer.Add(num_val_sizer, 0, wx.ALL, 5)
 
@@ -225,7 +228,6 @@ class BaseTestExperimentUI(wx.Panel):
         params['collectionOrder'] = self.collectionOrder.GetStringSelection()
         params['numAngle'] = int(self.numAngle.GetValue())
         params['numPhase'] = int(self.numPhase.GetValue())
-        params['numZ'] = int(self.numZ.GetValue())
         params['stageTime'] = float(self.stageTime.GetValue())
         params['attTime'] = float(self.attTime.GetValue())
         params['angleTime'] = float(self.angleTime.GetValue())
@@ -240,7 +242,6 @@ class BaseTestExperimentUI(wx.Panel):
             'collectionOrder': "Z, Color, Angle, Phase",
             'numAngle': 3,
             'numPhase': 5,
-            'numZ': 3,
             'stageTime': 100.0,
             'attTime': 100.0,
             'angleTime': 100.0,
@@ -264,7 +265,6 @@ class BaseTestExperimentUI(wx.Panel):
             'collectionOrder': self.collectionOrder.GetStringSelection(),
             'numAngle': int(self.numAngle.GetValue()),
             'numPhase': int(self.numPhase.GetValue()),
-            'numZ': int(self.numZ.GetValue()),
             'stageTime': float(self.stageTime.GetValue()),
             'attTime': float(self.attTime.GetValue()),
             'angleTime': float(self.angleTime.GetValue()),

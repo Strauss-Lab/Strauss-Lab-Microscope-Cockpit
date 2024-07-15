@@ -337,8 +337,8 @@ class DataSaver:
     def executeAndSave(self):
         # Joining the thread doesn't actually work until it has started,
         # hence the delay here.
-        # time.sleep(.5)
-        # self.runThread.join()
+        time.sleep(.5)
+        self.runThread.join()
 
         # Wait until it's been a bit without getting any more images in, or
         # until we have all the images we expected to get for each camera.
@@ -434,6 +434,9 @@ class DataSaver:
         numImages = self.imagesKept[cameraIndex]
         timepoint = numImages // self.maxImagesPerRep
         fileIndex = timepoint // self.maxRepsPerFile
+        # print(f'numImages: {numImages}; length of headers: {len(self.headers)}; fileIndex: {fileIndex}')
+        # print(f'timepoint: {timepoint}; maxRepsPerFile: {self.maxRepsPerFile}; maxImagesPerRep: {self.maxImagesPerRep}')
+        
         # Rebase the timepoint to be relative to the beginning of this specific
         # file.
         timepoint -= fileIndex * self.maxRepsPerFile

@@ -395,7 +395,7 @@ def recenterFineMotion():
             # of their ranges.
             curPosition = handler.getPosition()
             safeties = handler.getHardLimits()
-            target = (safeties[1] - safeties[0]) / 2 + safeties[0]
+            target = (safeties[1] - safeties[0]) / 2 + safeties[0] 
             handler.moveAbsolute(target)
             totalDelta += target - curPosition
         handlers[0].moveRelative(-totalDelta)
@@ -525,6 +525,7 @@ def getPosition():
 def getPositionForAxis(axis):
     result = 0
     for handler in set(mover.axisToHandlers[axis]):
+        print(f'In getPositionForAxis, result={result}, handler={handler}, pos={handler.getPosition()}')
         result += handler.getPosition()
     return result
 

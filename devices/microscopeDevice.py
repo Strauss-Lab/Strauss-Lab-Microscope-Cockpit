@@ -423,9 +423,11 @@ class _MicroscopeStageAxis:
             device per µm.
         stage_name: the name of the stage device, used to construct
             the handler name.
+        eligible_for_experiments: whether the axis can be used in an 
+            experiement.
     """
     def __init__(self, axis, index: int, units_per_micron: float,
-                 stage_name: str) -> None:
+                 stage_name: str, eligible_for_experiments: bool) -> None:
         self._axis = axis
         self._units_per_micron = units_per_micron
         self._name = "%d %s" % (index, stage_name)
@@ -434,9 +436,7 @@ class _MicroscopeStageAxis:
                             self._axis.limits.upper / self._units_per_micron)
 
         group_name = "%d stage motion" % index
-        eligible_for_experiments = False
-        # TODO: to make it eligible for experiments, we need a
-        # getMovementTime callback (see issue #614).
+        # NOTE: Adaptation made for experiment by Strauss Lab
         callbacks = {
             'getMovementTime' : self.getMovementTime,
             'getPosition' : self.getPosition,
@@ -452,10 +452,22 @@ class _MicroscopeStageAxis:
         return self._handler
 
     def getMovementTime(self, index: int, start: float, end: float) -> float:
-        # TODO: this is not implemented yet but it shouldn't be called
-        # anyway because we are not eligible for experiments.
+        # NOTE: This method is implemented to make experiment possible by Strauss Lab
         del index
-        raise NotImplementedError('')
+
+        # Convert start and end positions from microns to the device units
+        start_pos = start * self._units_per_micron
+        end_pos = end * self._units_per_micron
+
+        # Calculate the distance to move
+        distance = abs (end_pos - start_pos)
+
+        # Get the maximum velocity from the axis
+        max_velocity = self._axis.max_velocity_mmps * 1000 # convert mm/s to microns/s
+
+        # Calculate the movement time
+        movement_time = distance / max_velocity
+        return movement_time
 
     def getPosition(self, index: int) -> float:
         """Get the position for the specified axis."""
@@ -548,11 +560,13 @@ class MicroscopeStage(MicroscopeBase):
             if units_per_micron <= 0.0:
                 raise ValueError('\'%s\' configuration must be a positive value'
                                  % units_config_name)
-
+            
             their_axis = their_axes_map[their_name]
             cockpit_index = stageMover.AXIS_MAP[one_letter_name]
+            exp_eligibility = self.config.get('experiment', 'no').strip().lower()=='yes'
             self._axes.append(_MicroscopeStageAxis(their_axis, cockpit_index,
-                                                   units_per_micron, self.name))
+                                                   units_per_micron, self.name,
+                                                   exp_eligibility))
             handled_axis_names.add(their_name)
 
         # Ensure that there isn't a non handled axis left behind.
@@ -569,7 +583,6 @@ class MicroscopeStage(MicroscopeBase):
         # has been enabled before, it might do nothing.  We have no
         # way to know.
         self._proxy.enable()
-
 
     def getHandlers(self) -> typing.List[PositionerHandler]:
         # Override MicroscopeBase.getHandlers.  Do not call super.

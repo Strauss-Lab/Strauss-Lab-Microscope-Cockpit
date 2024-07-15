@@ -52,7 +52,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QPushButton,
 
 MAIN_SIZE = (800, 250)
 DIALOG_SIZE = (700, 120)
-COUNTDOWN = 3
+COUNTDOWN = 5
 
 # Fetch the root path dynamically
 package_name = 'cockpit'
