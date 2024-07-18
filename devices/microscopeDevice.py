@@ -472,7 +472,10 @@ class _MicroscopeStageAxis:
     def getPosition(self, index: int) -> float:
         """Get the position for the specified axis."""
         del index
-        return self._axis.position / self._units_per_micron
+        pos = self._axis.position
+        unit = self._units_per_micron
+        print(f'getPosition():\npos={pos}; units per micron={unit}\n')
+        return pos/unit
 
     def moveAbsolute(self, index: int, position: float) -> None:
         """Move axis to the given position in microns."""
@@ -542,7 +545,7 @@ class MicroscopeStage(MicroscopeBase):
         handled_axis_names = set()
 
         their_axes_map = self._proxy.axes
-        for one_letter_name in 'xyz':
+        for one_letter_name in 'xyzf':
             axis_config_name = one_letter_name + '-axis-name'
             if axis_config_name not in self.config:
                 # This stage does not have this axis.

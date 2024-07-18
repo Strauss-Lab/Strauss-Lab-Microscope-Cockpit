@@ -448,7 +448,7 @@ class ExperimentConfigPanel(wx.Panel):
                         message="Not enough stage movers found, so the experiment cannot be run.",
                         style=wx.ICON_EXCLAMATION | wx.STAY_ON_TOP | wx.OK).ShowModal()
                 return True
-            mover = movers[2][-1]
+            mover = movers[3][-1] # Change this if switch back to XYZ (XYF) Stage
 
             # Only use active cameras and enabled lights.
             cameras = list(filter(lambda c: c.getIsEnabled(), depot.getHandlersOfType(depot.CAMERA)))
@@ -480,7 +480,6 @@ class ExperimentConfigPanel(wx.Panel):
                     exposureSettings.append(([camera], settings))
 
             altitude = cockpit.interfaces.stageMover.getPositionForAxis(2)
-            print(f'In runExperiment, altitude={altitude}')
             # Default to "current is bottom"
             altBottom = altitude
             zHeight = guiUtils.tryParseNum(self.stackHeight, float)
@@ -496,9 +495,6 @@ class ExperimentConfigPanel(wx.Panel):
                 zHeight = 1e-6
                 sliceHeight = 1e-6
 
-            # DEBUG 
-            print(f'While running the experiment, altBottom={altBottom}, zHeight={zHeight}, sliceHeight={sliceHeight}')
-            
             savePath = os.path.join(cockpit.util.files.getUserSaveDir(), self.filename.GetValue())
             params = {
                     'numReps': guiUtils.tryParseNum(self.numReps),
@@ -521,7 +517,7 @@ class ExperimentConfigPanel(wx.Panel):
 
             if generate_only:
                 self.runner.sanityCheckEnvironment()
-                self.runner.prepareHandlers()
+                self.runner.prepareHandlers(generate_only)
                 self.runner.cameraToReadoutTime = {c: c.getTimeBetweenExposures(isExact = True) for c in self.runner.cameras}
                 for camera, readTime in self.runner.cameraToReadoutTime.items():
                     if type(readTime) is not decimal.Decimal:

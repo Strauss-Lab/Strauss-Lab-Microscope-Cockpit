@@ -407,16 +407,16 @@ class MacroStageXY(macroStageBase.MacroStageBase):
         position = cockpit.interfaces.stageMover.getPosition()
         values=cockpit.gui.dialogs.getNumberDialog.getManyNumbersFromUser(
                 self.GetParent(),
-                "Go To XYZ",('X','Y','Z'),
+                "Go To XYZF",('X','Y','Z','F'),
                 position,
                 atMouse=True)
-        newPos=[float(values[0]),float(values[1]),float(values[2])]
+        newPos=[float(values[0]),float(values[1]),float(values[2]),float(values[3])]
 #Work out if we will be ouside the limits of the current stage
-        posDelta = [newPos[0]-position[0],newPos[1]-position[1],newPos[2]-position[2]]
+        posDelta = [newPos[0]-position[0],newPos[1]-position[1],newPos[2]-position[2],newPos[3]-position[3]]
         originalHandlerIndex = cockpit.interfaces.stageMover.mover.curHandlerIndex
         currentHandlerIndex = originalHandlerIndex
         allPositions=cockpit.interfaces.stageMover.getAllPositions()
-        for axis in range(3):
+        for axis in range(4):
             if (posDelta[axis]**2 > .001 ):
                     limits = cockpit.interfaces.stageMover.getIndividualHardLimits(axis)
                     currentpos = allPositions[currentHandlerIndex][axis]

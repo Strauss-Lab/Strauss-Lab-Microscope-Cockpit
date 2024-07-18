@@ -107,9 +107,9 @@ class MacroStageBase(wx.glcanvas.GLCanvas):
 
         ## (X, Y, Z) vector describing the stage position as of the last
         # time we drew ourselves. We need this to display motion deltas.
-        self.prevStagePosition = numpy.zeros(3)
+        self.prevStagePosition = numpy.zeros(4)
         ## As above, but for the current position.
-        self.curStagePosition = numpy.zeros(3)
+        self.curStagePosition = numpy.zeros(4)
         ## Event used to indicate when drawing is done, so we can update
         # the above.
         self.drawEvent = threading.Event()

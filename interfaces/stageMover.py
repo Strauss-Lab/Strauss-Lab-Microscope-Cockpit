@@ -80,7 +80,8 @@ AXIS_MAP = {}
 AXIS_MAP.update({k:0 for k in '0xX'})
 AXIS_MAP.update({k:1 for k in '1yY'})
 AXIS_MAP.update({k:2 for k in '2zZ'})
-AXIS_MAP.update({k:k for k in [0,1,2]})
+AXIS_MAP.update({k:3 for k in '3fF'})
+AXIS_MAP.update({k:k for k in [0,1,2,3]})
 
 ## This module handles general stage motion: "go to this position", "move by
 # this delta", "remember this position", "go to this remembered position",
@@ -162,12 +163,12 @@ class StageMover:
         ## Maps axis to the handlers for that axis, sorted by their range of
         # motion.
         self.axisToHandlers = depot.getSortedStageMovers()
-        if set(self.axisToHandlers.keys()) != {0, 1, 2}:
-            raise ValueError('stage mover requires 3 axis: X, Y, and Z')
+        if set(self.axisToHandlers.keys()) != {0, 1, 2} and set(self.axisToHandlers.keys()) != {0, 1, 2, 3}:
+            raise ValueError('stage mover requires at least 3 axis: X, Y, and Z')
 
         # FIXME: we should have sensible defaults (see issue #638).
-        self._saved_top = userConfig.getValue('savedTop', default=3010.0)
-        self._saved_bottom = userConfig.getValue('savedBottom', default=3000.0)
+        self._saved_top = userConfig.getValue('savedTop', default=1000.0)
+        self._saved_bottom = userConfig.getValue('savedBottom', default=500.0)
 
         ## XXX: We have a single index for all axis, even though each
         ## axis may have a different number of stages.  While we don't
@@ -514,7 +515,7 @@ def loadSites(filename):
 ## Return the exact stage position, as the aggregate of all handlers'
 # positions.
 def getPosition():
-    result = 3 * [0]
+    result = len(AXIS_MAP) * [0]
     for axis, handlers in mover.axisToHandlers.items():
         for handler in set(handlers):
             result[axis] += handler.getPosition()
@@ -525,7 +526,6 @@ def getPosition():
 def getPositionForAxis(axis):
     result = 0
     for handler in set(mover.axisToHandlers[axis]):
-        print(f'In getPositionForAxis, result={result}, handler={handler}, pos={handler.getPosition()}')
         result += handler.getPosition()
     return result
 

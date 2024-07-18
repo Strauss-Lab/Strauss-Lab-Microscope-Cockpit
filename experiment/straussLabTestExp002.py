@@ -29,8 +29,6 @@ class LaserColorRotation(experiment.Experiment):
             for light in self.lights:
                 curTime = self.exposeSingle(curTime, self.cameras, light, table)
                 curTime += decimal.Decimal('1.0')
-        # # DEBUG
-        # print(f'In {EXPERIMENT_NAME}, printing generated action table: \n{table}')
         return table
 
     def exposeSingle(self, curTime, cameras, light, table):

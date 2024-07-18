@@ -292,7 +292,7 @@ class Experiment:
 
     ## Prepare all of the handlers needed in the experiment so that they're
     # in the correct mode.
-    def prepareHandlers(self):
+    def prepareHandlers(self, generateOnly=False):
         # Store the pre-experiment altitude.
         self.initialAltitude = cockpit.interfaces.stageMover.getPosition()[-1]
         # Ensure that we're the only ones moving things around.
@@ -304,9 +304,11 @@ class Experiment:
             wx.MessageBox("Wrong axis mover selected.")
             raise Exception("Wrong axis mover selected.")
         # Prepare our position.
-        cockpit.interfaces.stageMover.goToZ(self.altBottom, shouldBlock = True)
-        self.zStart = cockpit.interfaces.stageMover.getAllPositions()[-1][-1]
-        print(f'In prepareHandlers, zStart={self.zStart}')
+        if generateOnly:
+            self.zStart = self.altBottom
+        else:
+            cockpit.interfaces.stageMover.goToZ(self.altBottom, shouldBlock = True)
+            self.zStart = cockpit.interfaces.stageMover.getAllPositions()[-1][-1]
         events.publish(events.PREPARE_FOR_EXPERIMENT, self)
         # Prepare cameras.
         for camera in self.cameras:
