@@ -198,7 +198,7 @@ class Imager:
                     self.takeImage, timeout,
                     shouldBlock=True, shouldStopVideo=False)
             except Exception as e:
-                # print("Video mode failed:", e)
+                print("Video mode failed:", type(e))
                 events.publish(cockpit.events.VIDEO_MODE_TOGGLE, False)
                 traceback.print_exc()
                 break

@@ -47,12 +47,16 @@ import matplotlib.pyplot as plt
 from matplotlib.backend_bases import NavigationToolbar2
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5 import NavigationToolbar2QT as NavigationToolbar
+
+import PyQt5
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QPushButton, QWidget, QTextEdit
 
+import cockpit
+
 MAIN_SIZE = (800, 250)
 DIALOG_SIZE = (700, 120)
-COUNTDOWN = 5
+COUNTDOWN = 3
 
 # Fetch the root path dynamically
 package_name = 'cockpit'

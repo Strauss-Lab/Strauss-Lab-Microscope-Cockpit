@@ -474,7 +474,6 @@ class _MicroscopeStageAxis:
         del index
         pos = self._axis.position
         unit = self._units_per_micron
-        print(f'getPosition():\npos={pos}; units per micron={unit}\n')
         return pos/unit
 
     def moveAbsolute(self, index: int, position: float) -> None:

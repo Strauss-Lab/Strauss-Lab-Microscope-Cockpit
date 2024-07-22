@@ -85,9 +85,18 @@ import cockpit.util.userConfig
 from cockpit.gui import viewFileDropTarget
 from cockpit.gui import mainPanels
 
+import numpy as np
+import mrcfile
+import matplotlib.pyplot as plt
+from matplotlib.backend_bases import NavigationToolbar2
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5 import NavigationToolbar2QT as NavigationToolbar
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QPushButton, QWidget, QTextEdit
 
 ROW_SPACER = 12
 COL_SPACER = 8
+ICON_PATH = r"C:\Users\Admin\AppData\Local\Programs\Python\Python39\Lib\site-packages\cockpit\cockpit-pilot\strauss_lab_logo_red.ico"
 
 class MainWindowPanel(wx.Panel):
     def __init__(self, *args, **kwargs):
@@ -119,10 +128,18 @@ class MainWindowPanel(wx.Panel):
         events.subscribe(cockpit.events.VIDEO_MODE_TOGGLE, lambda state: videoButton.SetValue(state))
         buttonSizer.Add(videoButton, 1, wx.EXPAND)
 
+        # # Experiment & review buttons
+        # for lbl, fn in (("Single-site\nexperiment", lambda evt: singleSiteExperiment.showDialog(self)),
+        #                 ("Multi-site\nexperiment", lambda evt: multiSiteExperiment.showDialog(self)),
+        #                 ("View last\nfile", self.onViewLastFile)):
+        #     btn = wx.Button(self, wx.ID_ANY, lbl)
+        #     btn.Bind(wx.EVT_BUTTON, fn)
+        #     buttonSizer.Add(btn, 1, wx.EXPAND)
+
         # Experiment & review buttons
         for lbl, fn in (("Single-site\nexperiment", lambda evt: singleSiteExperiment.showDialog(self)),
                         ("Multi-site\nexperiment", lambda evt: multiSiteExperiment.showDialog(self)),
-                        ("View last\nfile", self.onViewLastFile)):
+                        ("View MRC\nimages", self.OnOpenImageViewer)):
             btn = wx.Button(self, wx.ID_ANY, lbl)
             btn.Bind(wx.EVT_BUTTON, fn)
             buttonSizer.Add(btn, 1, wx.EXPAND)
@@ -222,6 +239,133 @@ class MainWindowPanel(wx.Panel):
             if len(filenames) > 1:
                 print("Opening first of %d files. Others can be viewed by dragging them from the filesystem onto the main window of the Cockpit." % len(filenames))
 
+    # Beta
+    def OnOpenImageViewer(self, event):
+        file_path = wx.FileSelector("Choose an Image File to View...")
+        if file_path:
+            self.display_images_from_mrc(file_path)
+
+    def display_images_from_mrc(self, file_path):
+        try:
+            with mrcfile.open(file_path, permissive=True) as mrc:
+                # Read the image data and header
+                data = mrc.data
+                header = mrc.header
+
+                # Determine the number of images in the stack
+                num_images = data.shape[0] if data.ndim > 2 else 1
+
+                # Display images with navigation and metadata
+                app = QApplication([])
+                navigator = ImageNavigator(data, header, num_images)
+                app.exec_()
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+class ImageNavigator(QMainWindow):
+    def __init__(self, data, header, num_images):
+        super().__init__()
+        self.data = data
+        self.header = header
+        self.num_images = data.shape[0] if data.ndim > 2 else 1
+        self.current_index = 0
+        self.num_images = num_images
+        
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle('MRC Image Viewer')
+        
+        # Set the application icon
+        app_icon = QIcon(ICON_PATH)
+        self.setWindowIcon(app_icon)
+        
+        self.canvas = FigureCanvas(plt.Figure())
+        self.ax = self.canvas.figure.subplots()
+        self.image_display = self.ax.imshow(self.data[self.current_index, :, :], cmap='gray')
+        self.ax.set_title(f"Image {self.current_index + 1}")
+        self.ax.axis('off')
+
+        self.toolbar = NavigationToolbar(self.canvas, self)
+        self.addToolBar(self.toolbar)
+
+        self.prev_button = QPushButton('Previous', self)
+        self.prev_button.clicked.connect(self.prev_image)
+        self.toolbar.addWidget(self.prev_button)
+
+        self.next_button = QPushButton('Next', self)
+        self.next_button.clicked.connect(self.next_image)
+        self.toolbar.addWidget(self.next_button)
+
+        self.metadata_display = QTextEdit(self)
+        self.metadata_display.setReadOnly(True)
+
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.addWidget(self.canvas)
+        layout.addWidget(self.metadata_display)
+        self.setCentralWidget(widget)
+
+        self.update_display()
+        self.show()
+
+    def update_display(self):
+        self.image_display.set_data(self.data[self.current_index, :, :])
+        self.ax.set_title(f"Image {self.current_index + 1}/{self.num_images}")
+        self.update_metadata(self.current_index)
+        self.canvas.draw()
+
+    def prev_image(self):
+        if self.current_index > 0:
+            self.current_index -= 1
+            self.update_display()
+
+    def next_image(self):
+        if self.current_index < self.num_images - 1:
+            self.current_index += 1
+            self.update_display()
+
+    def update_metadata(self, index):
+        metadata_text = self.generate_metadata_text(index)
+        self.metadata_display.setPlainText(metadata_text)
+
+    def generate_metadata_text(self, index):
+        metadata_lines = []
+        metadata_lines.append("\nMetadata for current image:")
+        metadata_lines.append(f"Number of columns: {self.header.nx}")
+        metadata_lines.append(f"Number of rows: {self.header.ny}")
+        metadata_lines.append(f"Number of sections: {self.header.nz}")
+        metadata_lines.append(f"Pixel spacing (angstroms): {self.header.cella}")
+        metadata_lines.append(f"Map mode: {self.header.mode}")
+        metadata_lines.append(f"Start point of sub-volume (x, y, z): ({self.header.nxstart}, {self.header.nystart}, {self.header.nzstart})")
+        metadata_lines.append(f"Number of intervals along x, y, z: ({self.header.mx}, {self.header.my}, {self.header.mz})")
+        metadata_lines.append(f"Min, Max, Mean density: {self.header.dmin}, {self.header.dmax}, {self.header.dmean}")
+        metadata_lines.append(f"Is this a volumetric map? {'Yes' if self.header.ispg == 0 else 'No'}")
+        if hasattr(self.header, 'next'):
+            metadata_lines.append(f"Number of bytes in extended header: {self.header.next}")
+        else:
+            metadata_lines.append("Number of bytes in extended header: Not available")
+        if hasattr(self.header, 'imodStamp'):
+            metadata_lines.append(f"Image type (0=image, 1=diffraction): {self.header.imodStamp}")
+        else:
+            metadata_lines.append("Image type (0=image, 1=diffraction): Not available")
+
+        # Displaying metadata for previous and next images
+        if index > 0:
+            metadata_lines.append("\nMetadata for previous image:")
+            metadata_lines.extend(self.generate_basic_metadata_text(index - 1))
+        if index < self.num_images - 1:
+            metadata_lines.append("\nMetadata for next image:")
+            metadata_lines.extend(self.generate_basic_metadata_text(index + 1))
+
+        return "\n".join(metadata_lines)
+
+    def generate_basic_metadata_text(self, index):
+        metadata_lines = []
+        metadata_lines.append(f"Image {index + 1}:")
+        metadata_lines.append(f"Min, Max density: {np.min(self.data[index])}, {np.max(self.data[index])}")
+        return metadata_lines
 
 class ChannelsMenu(wx.Menu):
     def __init__(self, *args, **kwargs):
