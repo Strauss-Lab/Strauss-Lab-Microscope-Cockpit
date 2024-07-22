@@ -451,7 +451,7 @@ class _MicroscopeStageAxis:
     def getHandler(self) -> PositionerHandler:
         return self._handler
 
-    def getMovementTime(self, index: int, start: float, end: float) -> float:
+    def getMovementTime(self, index: int, start: float, end: float) -> int:
         # NOTE: This method is implemented to make experiment possible by Strauss Lab
         del index
 
@@ -467,7 +467,7 @@ class _MicroscopeStageAxis:
 
         # Calculate the movement time
         movement_time = distance / max_velocity
-        return movement_time
+        return int(movement_time)
 
     def getPosition(self, index: int) -> float:
         """Get the position for the specified axis."""

@@ -36,12 +36,27 @@ class StraussSI(experiment.Experiment):
                  numAngle=3, numPhase=5,
                  stageTime=100.0, attTime=100.0, angleTime=100.0, phaseTime=100.0, stepTime=100.0,
                  lightTime=200.0, cameraTime=200.0, onlyCentre=False,
+                 power_settings=[],
                  *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.lights = []
+        self.lightPower = []
         for light in depot.getHandlersOfType(depot.LIGHT_TOGGLE):
             if light.getIsEnabled():
                 self.lights.append(light)   # Get all enabled light sources
+
+        for power in depot.getHandlersOfType(depot.LIGHT_POWER):
+            if power.getIsEnabled():
+                self.lightPower.append(power) # Get all enabled light power handlers
+
+        # Ensure all power handlers have a value of 0
+        for power in self.lightPower:
+            p = power.getPower()
+            assert p == 0, f"Laser {power.name} has a non-zero power: {p}"
+
+        # Ensure power settings match the number of light powers
+        assert len(power_settings) == len(self.lightPower), f'Power settings list len = {len(power_settings)}, but there are {len(self.lightPower)} lasers'
+
         self.angleHandler = depot.getHandlerWithName('FPGA Angle')
         self.phaseHandler = depot.getHandlerWithName('FPGA Phase')
         self.attHandler = depot.getHandlerWithName('FPGA Attenuator')
@@ -58,6 +73,7 @@ class StraussSI(experiment.Experiment):
         self.lightTime = lightTime
         self.cameraTime = cameraTime
         self.onlyCentre = onlyCentre
+        self.power_settings = power_settings
 
     def generateActions(self):
         table = actionTable.ActionTable()
@@ -65,7 +81,12 @@ class StraussSI(experiment.Experiment):
         # Turn off all the lights.
         for light in self.lights:
             table.addAction(curTime, light, False)
-            curTime += decimal.Decimal(self.stepTime)
+        curTime += decimal.Decimal(self.stepTime)
+
+        for i in range(len(self.lightPower)):
+            table.addAction(curTime, self.lightPower[i], self.power_settings[i])
+        curTime += decimal.Decimal(self.stepTime)
+
         prev_z = -1
         prev_angle = -1
         prev_color = -1
@@ -90,7 +111,15 @@ class StraussSI(experiment.Experiment):
                 curTime += decimal.Decimal(self.phaseTime)
             curTime = self.expose(curTime, self.cameras, self.lights[color], table)
             curTime += decimal.Decimal(self.stepTime)
-        # print(f'Printing Generated Action Table:\n{table}')
+
+        # Restore the light toggle states
+        for light in self.lights:
+            table.addAction(curTime, light, True)
+        curTime += decimal.Decimal(self.stepTime)
+
+        # Restore the light power states (0 mW)
+        for power in self.lightPower:
+            table.addAction(curTime, power, 0)
         return table
 
     def expose(self, curTime, cameras, light, table):
@@ -205,6 +234,7 @@ class BaseTestExperimentUI(wx.Panel):
 
         # Time input controls in a flex grid sizer
         time_input_sizer = wx.FlexGridSizer(6, 5, 5)  # 6 columns (including text), 5px gap
+        power_input_sizer = wx.FlexGridSizer(6, 5, 5)
         self.createInput(time_input_sizer, "Stage Time (ms):", 'stageTime')
         self.createInput(time_input_sizer, "Attenuator Time (ms):", 'attTime')
         self.createInput(time_input_sizer, "Angle Time (ms):", 'angleTime')
@@ -213,7 +243,18 @@ class BaseTestExperimentUI(wx.Panel):
         self.createInput(time_input_sizer, "Light Time (ms):", 'lightTime')
         self.createInput(time_input_sizer, "Camera Time (ms):", 'cameraTime')
 
+        self.lightPower = []
+        for power in depot.getHandlersOfType(depot.LIGHT_POWER):
+            if power.getIsEnabled():
+                self.lightPower.append(power)
+        for power in self.lightPower:
+            power_input_sizer.Add(wx.StaticText(self, -1, str(power.name)+' (mW):'))
+            setattr(self, str(power.name), wx.TextCtrl(self, value='0', validator=IntValidator()))
+            power_input_sizer.Add(getattr(self, str(power.name)), 0, wx.ALL, 5)
+
         main_sizer.Add(time_input_sizer, 0, wx.ALL, 5)
+        main_sizer.Add(power_input_sizer, 0, wx.ALL, 5)
+        
         self.SetSizerAndFit(main_sizer)
 
     def createInput(self, sizer, label, setting_name, validator=FloatValidator()):
@@ -235,6 +276,10 @@ class BaseTestExperimentUI(wx.Panel):
         params['stepTime'] = float(self.stepTime.GetValue())
         params['lightTime'] = float(self.lightTime.GetValue())
         params['cameraTime'] = float(self.cameraTime.GetValue())
+        power_settings = []
+        for power in self.lightPower:
+            power_settings.append(int(getattr(self, str(power.name)).GetValue()))
+        params['power_settings'] = power_settings
         return params
 
     def _getDefaultSettings(self):
@@ -249,6 +294,7 @@ class BaseTestExperimentUI(wx.Panel):
             'stepTime': 100.0,
             'lightTime': 200.0,
             'cameraTime': 200.0,
+            'power_settings': 4*[0],
         }
 
     def loadSettings(self):
@@ -261,6 +307,9 @@ class BaseTestExperimentUI(wx.Panel):
         return result
 
     def getSettingsDict(self):
+        power_settings = []
+        for power in self.lightPower:
+            power_settings.append(int(getattr(self, str(power.name)).GetValue()))
         return {
             'collectionOrder': self.collectionOrder.GetStringSelection(),
             'numAngle': int(self.numAngle.GetValue()),
@@ -272,6 +321,7 @@ class BaseTestExperimentUI(wx.Panel):
             'stepTime': float(self.stepTime.GetValue()),
             'lightTime': float(self.lightTime.GetValue()),
             'cameraTime': float(self.cameraTime.GetValue()),
+            'power_settings': power_settings, 
         }
 
     def saveSettings(self, settings=None):
