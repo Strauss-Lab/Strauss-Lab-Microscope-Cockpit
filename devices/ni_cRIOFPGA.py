@@ -66,7 +66,7 @@ COCKPIT_AXES = {'x': 0, 'y': 1, 'z': 2, 'SI angle': -1}
 FPGA_IDLE_STATE = 3
 FPGA_ABORTED_STATE = 4
 FPGA_HEARTBEAT_RATE = .1  # At which rate is the FPGA sending update status signals
-MASTER_IP = '172.22.11.1' # Host Computer IP; this must match the UDP Destination in LabVIEW
+MASTER_IP = '169.254.31.168' # Host Computer IP; this must match the UDP Destination in LabVIEW
 UPDATE_RATE = 0.001
 
 class NIcRIO(executorDevices.ExecutorDevice):
@@ -78,9 +78,8 @@ class NIcRIO(executorDevices.ExecutorDevice):
 
     def __init__(self, name, config):
         super().__init__(name, config)
-        # TODO: tickrate should go into a config?
         # Validation
-        required = set(['sendport','receiveport','nrdigitallines', 'nranaloglines'])
+        required = set(['sendport','receiveport','nrdigitallines', 'nranaloglines', 'masterip', 'tickrate'])
         missing = required.difference(config)
         if missing:
             e = Exception('%s %s missing required fields: %s.' %
@@ -88,7 +87,8 @@ class NIcRIO(executorDevices.ExecutorDevice):
                            name,
                            ' '.join(missing)))
             raise e
-        self.tickrate = 1000  # Number of ticks per ms. As of the resolution of the action table.
+        self.tickrate = int(config.get('tickrate'))  # Number of ticks per ms. As of the resolution of the action table.
+        self.masterip = config.get('masterip')
         self.sendPort = config.get('sendport')
         self.receivePort = config.get('receiveport')
         self.port = [self.sendPort, self.receivePort]
